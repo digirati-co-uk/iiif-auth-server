@@ -1,0 +1,19 @@
+{
+    "01_gene_cernan.jpg" : {        
+        "service" : {
+            "@context": "http://iiif.io/api/auth/1/context.json",
+            "@id": " (will be assigned) ",
+            "profile": "http://iiif.io/api/auth/1/login",
+            "label": "Login to Example Institution",
+            "header": "Please Log In",
+            "description": "Example Institution requires that you log in with your example account to view this content.",
+            "confirmLabel": "Login",
+            "failureHeader": "Authentication Failed",
+            "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>",
+            "service" : " (token and logout services will be assigned)"
+        }
+    },
+    "02_another_image.jpg" : {
+
+    }
+}

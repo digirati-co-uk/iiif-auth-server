@@ -4,6 +4,7 @@
 """
 
 import os
+import re
 import json
 from flask import Flask, Response, make_response, send_file, jsonify, request, render_template, url_for
 from iiif2 import iiif, web
@@ -39,11 +40,29 @@ def preflight():
 
 @app.route('/<identifier>/info.json')
 def image_info(identifier):
+    """
+        Return the info.json, with the correct HTTP status code,
+        and decorated with the right auth services
+    """
     if request.method == 'OPTIONS':
         return preflight()
 
+    token = None
+    m = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
+    if m:
+        token = m.group(1)  
+
     uri = "%s%s" % (request.url_root, identifier)
-    return jsonify(web.info(uri, resolve(identifier)))
+    info = web.info(uri, resolve(identifier))
+
+    
+
+    # get service info
+    # decorate with services
+    # determine user's status wrt img
+    # token on request?
+
+    return jsonify(info)
 
 
 @app.route('/<identifier>/<region>/<size>/<rotation>/<quality>.<fmt>')
@@ -51,6 +70,29 @@ def image_processor(identifier, **kwargs):
     params = web.Parse.params(identifier, **kwargs)
     tile = iiif.IIIF.render(resolve(identifier), **params)
     return send_file(tile, mimetype=tile.mime)
+
+@app.route('/<identifier>/cookie')
+def cookie_service(identifier):
+    """Cookie service (might be a login interaction patterm doesn't have to be)"""
+    origin = request.args.get('origin')
+    # look up identifier in list
+    # might be a special shared identifier or prefix that applies to more than one image
+    # /iiif/login
+
+
+
+@app.route('/<identifier>/token')
+def token_service(identifier):
+    """Token service"""
+    origin = request.args.get('origin')
+    messageId = request.args.get('messageId')
+
+
+@app.route('/<identifier>/logout')
+def logout_service(identifier):
+    """Log out service"""
+    # identifier might be 'all'
+
 
     
 if __name__ == '__main__':
