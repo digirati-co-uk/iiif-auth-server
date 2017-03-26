@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+{% block body %}
+  <ul class=images>
+  {% for img in images %}
+    <li><a href="{{ url_for('image_info', identifier=img) }}">{{ img }}</a></li>
+  {% else %}
+    <li><em>No images found!</em>
+  {% endfor %}
+  </ul>
+{% endblock %}
