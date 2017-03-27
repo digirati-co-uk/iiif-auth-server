@@ -6,7 +6,10 @@
 import os
 import re
 import json
-from flask import Flask, Response, make_response, send_file, jsonify, request, render_template, url_for
+from flask import (
+    Flask, make_response, request, 
+    render_template, send_file, jsonify
+)
 from iiif2 import iiif, web
 
 
@@ -23,7 +26,7 @@ def resolve(identifier):
 @app.route('/')
 def index():
     """List all the info.jsons we have"""
-    images = sorted(f for f in os.listdir(media_root))
+    images = sorted(f for f in os.listdir(media_root) if not f.endswith('json'))
     return render_template('index.html', images=images)
     # return jsonify({'identifiers': [f for f in os.listdir(media_root)]})
 
@@ -36,6 +39,11 @@ def preflight():
     resp.headers['Access-Control-Allow-Headers'] = 'Authorization'
     return resp
 
+def get_policy(identifier):
+    with open(os.path.join(media_root, 'policy.json')) as policy_data:
+        policy = json.load(policy_data)
+        return policy[identifier]
+
 
 
 @app.route('/<identifier>/info.json')
@@ -47,20 +55,22 @@ def image_info(identifier):
     if request.method == 'OPTIONS':
         return preflight()
 
+    policy = get_policy(identifier)
+
     token = None
     m = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
     if m:
-        token = m.group(1)  
+        token = m.group(1)
 
     uri = "%s%s" % (request.url_root, identifier)
     info = web.info(uri, resolve(identifier))
+    if authorise_info_by_token(identifier, )
 
-    
 
     # get service info
     # decorate with services
-    # determine user's status wrt img
     # token on request?
+    # determine user's status wrt img
 
     return jsonify(info)
 
