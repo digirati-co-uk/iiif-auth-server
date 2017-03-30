@@ -1,21 +1,58 @@
 {
+    "comment" : "This is neither IIIF nor JSON-LD, even though it contains fragments of IIIF. Its purpose is configuration the demo",
     "01_gene_cernan.jpg" : {        
         "auth_services" : [
             {
-                "@context": "http://iiif.io/api/auth/1/context.json",
-                "@id": " (will be assigned) ",
                 "profile": "http://iiif.io/api/auth/1/login",
                 "label": "Login to Example Institution",
                 "header": "Please Log In",
                 "description": "Example Institution requires that you log in with your example account to view this content.",
                 "confirmLabel": "Login",
                 "failureHeader": "Authentication Failed",
-                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>",
-                "service" : " (token and logout services will be assigned)"
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
             }
         ]
     },
-    "02_another_image.jpg" : {
-
+    "02_mars_water.jpg" : {
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ],
+        "shared": true
+    },
+    "03_portmeirion.jpg" : {
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ],
+        "degraded" : "03_portmeirion_degraded.jpg" 
+    },
+    "03_portmeirion_degraded.jpg" : {
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ],
+        "open" : true 
     }
 }

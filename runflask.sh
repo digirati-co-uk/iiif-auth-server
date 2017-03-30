@@ -1,3 +1,3 @@
 export FLASK_APP=iiifauth
-export FLAK_DEBUG=true
+export FLASK_DEBUG=true
 flask run
