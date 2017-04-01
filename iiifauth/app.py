@@ -9,6 +9,8 @@ import json
 import uuid
 import iiifauth.terms
 
+from datetime import timedelta
+
 from flask import (
     Flask, make_response, request, session, url_for,
     render_template, redirect, send_file, jsonify
@@ -19,8 +21,14 @@ from iiif2 import iiif, web
 
 app = Flask(__name__)
 app.permanent_session_lifetime = timedelta(minutes=10)
-path = os.path.dirname(os.path.abspath(__file__))
-media_root = os.path.join(path, 'media')
+app.secret_key = 'Set a sensible secret key here'
+
+# some globals
+APP_PATH = os.path.dirname(os.path.abspath(__file__))
+MEDIA_ROOT = os.path.join(APP_PATH, 'media')
+AUTH_POLICY = None
+with open(os.path.join(MEDIA_ROOT, 'policy.json')) as policy_data:
+    AUTH_POLICY = json.load(policy_data)
 
 
 @app.before_request
@@ -31,15 +39,16 @@ def func():
 
 def resolve(identifier):
     """Resolves a iiif identifier to the resource's path on disk."""
-    return os.path.join(media_root, identifier)
+    return os.path.join(MEDIA_ROOT, identifier)
 
 
 @app.route('/')
 def index():
     """List all the info.jsons we have"""
-    images = sorted(f for f in os.listdir(media_root) if not f.endswith('json'))
-    return render_template('index.html', images=images)
-    # return jsonify({'identifiers': [f for f in os.listdir(media_root)]})
+    files = os.listdir(MEDIA_ROOT)
+    images = sorted(f for f in files if not f.endswith('json'))
+    manifests = sorted(f for f in files if f.endswith('manifest.json'))
+    return render_template('index.html', images=images, manifests=manifests)
 
 
 def preflight():
@@ -50,21 +59,19 @@ def preflight():
     resp.headers['Access-Control-Allow-Headers'] = 'Authorization'
     return resp
 
-def get_policy(identifier):
-    with open(os.path.join(media_root, 'policy.json')) as policy_data:
-        policy = json.load(policy_data)
-        return policy[identifier]
+
 
 def get_pattern_name(service):
     """
-        Use the profile to differentiate pattern names 
+        Get a friendly pattern name / slug from the auth service profile
     """
     return service['profile'].split('/')[-1]
 
 
 def decorate_info(info, policy, identifier):
     """
-        Flesh out auth services
+        Augment the info.json with auth service(s) from our
+        'database' of auth policy
     """
     services = policy.get('auth_services', [])
 
@@ -93,22 +100,58 @@ def decorate_info(info, policy, identifier):
 
 def authorise_info_request(identifier):
     """Authorise info.json request based on token"""
-    policy = get_policy(identifier)
-
-    token = None
-    m = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
-    if m:
-        token = m.group(1)
-
-    if policy.get('open', False):
+    policy = AUTH_POLICY[identifier]
+    if policy.get('open'):
+        print('%s is open, no auth required' % identifier)
         return True
 
-    return True
+    session_key = None
+    match = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
+    if match:
+        token = match.group(1)
+        print('token %s found', token)
+        session_key = session.get(token, None)
+        print('session_key %s found', session_key)
+    else:
+        print('no Authorization header found')
+
+    if not session_key:
+        print('requires access control and no session_key found')
+        return False
+
+    # Now make sure the token is for one of this image's services
+    services = policy.get('auth_services', [])
+    identifier_slug = 'shared' if policy.get('shared', False) else identifier
+    for service in services:
+        pattern = get_pattern_name(service)
+        test_key = get_key('cookie', pattern, identifier_slug)
+        if session_key == test_key:
+            print('User has session key', session_key, 'request authorized')
+            return True
+
+    print('info request is NOT authorized')
+    return False
+
 
 def authorise_image_request(identifier):
-    policy = get_policy(identifier)
+    """
+        Authorise image API requests based on Cookie (or possibly other mechanisms)
+    """
+    policy = AUTH_POLICY[identifier]
+    if policy.get('open'):
+        return True
+
+    services = policy.get('auth_services', [])
+    identifier_slug = 'shared' if policy.get('shared', False) else identifier
     # does the request have a cookie acquired from this image's cookie service(s)?
-    return True
+    for service in services:
+        pattern = get_pattern_name(service)
+        test_key = get_key('cookie', pattern, identifier_slug)
+        if session.get(test_key, None):
+            return True
+
+    # handle other possible authorisation mechanisms, such as IP
+    return False
 
 
 @app.route('/<identifier>/info.json')
@@ -120,10 +163,11 @@ def image_info(identifier):
         Handle CORS explicitly for clarity
     """
     if request.method == 'OPTIONS':
-        # CORS preflight request
+        print('CORS preflight request for', identifier)
         return preflight()
 
-    policy = get_policy(identifier)
+    print('info.json request for', identifier)
+    policy = AUTH_POLICY[identifier]
     uri = "%s%s" % (request.url_root, identifier)
     info = web.info(uri, resolve(identifier))
     decorate_info(info, policy, identifier)
@@ -131,10 +175,13 @@ def image_info(identifier):
 
     if authorise_info_request(identifier):
         return jsonify(info)
-    
-    # not authed!
-    if policy.degraded:
-        return redirect("%s%s" % (request.url_root, policy.degraded), code=302)
+
+    print('The user is not authed for this resource')
+    degraded_version = policy.get('degraded', None)
+    if degraded_version:
+        redirect_to = "%s%s/info.json" % (request.url_root, degraded_version)
+        print('a degraded version is available at', redirect_to)
+        return redirect(redirect_to, code=302)
 
 
     return make_response(jsonify(info), 401)
@@ -155,7 +202,7 @@ def image_api_request(identifier, **kwargs):
     return make_response("Not authorised", 401)
 
 
-@app.route('/auth/cookie/<pattern>/<identifier>')
+@app.route('/auth/cookie/<pattern>/<identifier>', methods=['GET', 'POST'])
 def cookie_service(pattern, identifier):
     """Cookie service (might be a login interaction pattern. Doesn't have to be)"""
     origin = request.args.get('origin')
@@ -208,20 +255,36 @@ def external(identifier):
 def make_session(pattern, identifier, origin):
     """
         Establish a session for this user and this resource.
-        Needless to say, do not follow this pattern in a production application
+        Your own n a production application
     """
     cookie_key = get_key('cookie', pattern, identifier)
+    print('Making a session for ', cookie_key)
+    # The token can be anything, but you shouldn't be able to
+    # deduce the cookie value from the token value.
+    # In this demo the client cookie is a Flask session cookie,
+    # we're not setting an explicit IIIF auth cookie.
     token = uuid.uuid4().hex
+    print('minted token:', token)
     session[cookie_key] = token
     session[token] = cookie_key
+    # store the origin associated with this token
     session[token + '-origin'] = origin
 
 
-def get_key(key_type, profile, identifier):
+def get_key(key_type, pattern, identifier):
     """
         Simple format for session keys used to maintain session
     """
-    return "%s/%s/%s" % (key_type, profile, identifier)
+    return "%s/%s/%s" % (key_type, pattern, identifier)
+
+
+def split_key(key):
+    """Get the pattern and the identifier out of the key"""
+    parts = key.split('/')
+    return {
+        "pattern" : parts[1],
+        "identifier": parts[2]
+    }
 
 
 @app.route('/auth/post_login')
@@ -237,10 +300,10 @@ def token_service(pattern, identifier):
     origin = request.args.get('origin')
     message_id = request.args.get('messageId')
     cookie_key = get_key('cookie', pattern, identifier)
-    token = session.get(cookie_key)
-    session_origin = session.get(token + '-origin', None)
+    token = session.get(cookie_key, None)
     token_object = None
     if token:
+        session_origin = session.get(token + '-origin', None)   
         if origin == session_origin or pattern == 'external':
             # don't enforce origin on external auth
             token_object = {
@@ -261,7 +324,7 @@ def token_service(pattern, identifier):
     if message_id:
         # client is a browser
         token_object['messageId'] = message_id
-        return render_template('token.html', token=token_object, origin=origin)
+        return render_template('token.html', token_object=token_object, origin=origin)
 
     # client isn't using postMessage
     return jsonify(token_object)
@@ -280,3 +343,4 @@ def logout_service(pattern, identifier):
 
 if __name__ == '__main__':
     app.run()
+ 
