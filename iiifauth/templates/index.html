@@ -1,10 +1,19 @@
 {% extends "layout.html" %}
 {% block body %}
+  <h3>Images</h3>
   <ul class=images>
-  {% for img in images %}
-    <li><a href="{{ url_for('image_info', identifier=img) }}">{{ img }}</a></li>
+  {% for image in images %}
+    <li><a href="{{ url_for('image_info', identifier=image) }}">{{ image }}</a></li>
   {% else %}
     <li><em>No images found!</em>
+  {% endfor %}
+  </ul>
+  <h3>Manifests</h3>
+  <ul class=manifests>
+  {% for manifest in manifests %}
+    <li><a href="{{ url_for('manifest', identifier=manifest) }}">{{ manifest }}</a></li>
+  {% else %}
+    <li><em>No manifests found!</em>
   {% endfor %}
   </ul>
 {% endblock %}

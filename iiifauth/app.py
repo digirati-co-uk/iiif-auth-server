@@ -8,7 +8,6 @@ import re
 import json
 import uuid
 import iiifauth.terms
-
 from datetime import timedelta
 
 from flask import (
@@ -46,9 +45,33 @@ def resolve(identifier):
 def index():
     """List all the info.jsons we have"""
     files = os.listdir(MEDIA_ROOT)
-    images = sorted(f for f in files if not f.endswith('json'))
-    manifests = sorted(f for f in files if f.endswith('manifest.json'))
+    images = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
+    manifests = sorted(''.join(f.split('.')[:-2]) for f in files if f.endswith('manifest.json'))
     return render_template('index.html', images=images, manifests=manifests)
+
+@app.route('/manifest/<identifier>')
+def manifest(identifier):
+    """
+        Transform skeleton manifest into one with sensible URLs
+    """
+    with open(os.path.join(MEDIA_ROOT, '%s.manifest.json' % identifier)) as source_manifest:
+        new_manifest = json.load(source_manifest)
+        new_manifest['@id'] = "%smanifest/%s" % (request.url_root, identifier)
+        new_manifest['sequences'][0]['@id'] = (
+            "%smanifest/%s/sequence" % (request.url_root, identifier))
+        for canvas in new_manifest['sequences'][0]['canvases']:
+            image = canvas['images'][0]['resource']
+            image_identifier = image['@id']
+            canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
+            image['service'] = {
+                "@context" : iiifauth.terms.CONTEXT_IMAGE,
+                "@id" : "%simg/%s" % (request.url_root, image_identifier),
+                "profile" : iiifauth.terms.PROFILE_IMAGE
+            }
+            image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
+
+    return jsonify(new_manifest)
+
 
 
 def preflight():
@@ -154,7 +177,13 @@ def authorise_image_request(identifier):
     return False
 
 
-@app.route('/<identifier>/info.json')
+@app.route('/img/<identifier>')
+def image_id(identifier):
+    """Redirect a plain image id"""
+    return redirect(url_for('image_info', identifier=identifier), code=303)
+
+
+@app.route('/img/<identifier>/info.json')
 def image_info(identifier):
     """
         Return the info.json, with the correct HTTP status code,
@@ -189,7 +218,7 @@ def image_info(identifier):
 
 
 
-@app.route('/<identifier>/<region>/<size>/<rotation>/<quality>.<fmt>')
+@app.route('/img/<identifier>/<region>/<size>/<rotation>/<quality>.<fmt>')
 def image_api_request(identifier, **kwargs):
     """
         A IIIF Image API request; use iiif2 to generate the tile

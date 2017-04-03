@@ -1,0 +1,109 @@
+
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Beer : its history and its economic value as a national beverage",
+  "metadata": [
+    {
+      "label": "Title",
+      "value": "Beer : its history and its economic value as a national beverage"
+    },
+    {
+      "label": "Author(s)",
+      "value": "Salem, F. W; Francis A. Countway Library of Medicine"
+    },
+    {
+      "label": "Publication date",
+      "value": "1880, ©1879."
+    },
+    {
+      "label": "Repository",
+      "value": "This material has been provided by Francis A. Countway Library of Medicine where the originals may be consulted."
+    },
+    {
+      "label": "",
+      "value": "<a href='http://search.wellcomelibrary.org/iii/encore/record/C__Rb2107597'>View full catalogue record</a>"
+    },
+    {
+      "label": "Full conditions of use",
+      "value": "This work has been identified as being free of known restrictions under copyright law, including all related and neighbouring rights and is being made available under the <a target=\"_top\" href=\"http://creativecommons.org/publicdomain/mark/1.0/\">Creative Commons, Public Domain Mark</a>.<br/><br/>You can copy, modify, distribute and perform the work, even for commercial purposes, without asking permission."
+    }
+  ],
+  "license": "https://creativecommons.org/publicdomain/mark/1.0/",
+  "logo": "http://wellcomelibrary.org/assets/img/squarelogo64.png",
+  "related": {
+    "@id": "http://wellcomelibrary.org/item/b21075979",
+    "format": "text/html"
+  },
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "viewingHint": "paged",
+      "canvases": [
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b21075979/canvas/c0",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 3404,
+          "width": 2022,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "manifest_01_beer_01.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "http://wellcomelibrary.org/iiif/b21075979/canvas/c0"
+            }
+          ]
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b21075979/canvas/c1",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 3343,
+          "width": 1967,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "manifest_01_beer_02.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "http://wellcomelibrary.org/iiif/b21075979/canvas/c1"
+            }
+          ]
+        },
+        {
+          "@id": "http://wellcomelibrary.org/iiif/b21075979/canvas/c2",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 3343,
+          "width": 1967,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "manifest_01_beer_03.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "http://wellcomelibrary.org/iiif/b21075979/canvas/c2"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
