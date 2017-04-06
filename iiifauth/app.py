@@ -8,10 +8,11 @@ import re
 import json
 import uuid
 import iiifauth.terms
+import sqlite3
 from datetime import timedelta
 
 from flask import (
-    Flask, make_response, request, session, url_for,
+    Flask, make_response, request, session, g, url_for,
     render_template, redirect, send_file, jsonify
 )
 from iiif2 import iiif, web
@@ -21,6 +22,7 @@ from iiif2 import iiif, web
 app = Flask(__name__)
 app.permanent_session_lifetime = timedelta(minutes=10)
 app.secret_key = 'Set a sensible secret key here'
+app.database = os.path.join(app.root_path, 'iiifauth.db')
 
 # some globals
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +30,7 @@ MEDIA_ROOT = os.path.join(APP_PATH, 'media')
 AUTH_POLICY = None
 with open(os.path.join(MEDIA_ROOT, 'policy.json')) as policy_data:
     AUTH_POLICY = json.load(policy_data)
+
 
 
 @app.before_request
@@ -70,14 +73,19 @@ def manifest(identifier):
             }
             image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
 
-    return jsonify(new_manifest)
+    return make_acao_response(jsonify(new_manifest), 200)
 
+
+def make_acao_response(response_object, status=None):
+    """We're handling CORS directly for clarity"""
+    resp = make_response(response_object, status)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    return resp
 
 
 def preflight():
     """Handle a CORS preflight request"""
-    resp = make_response(None, 200)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp = make_acao_response('', 200)
     resp.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
     resp.headers['Access-Control-Allow-Headers'] = 'Authorization'
     return resp
@@ -128,18 +136,21 @@ def authorise_info_request(identifier):
         print('%s is open, no auth required' % identifier)
         return True
 
-    session_key = None
+    cookiekey = None
     match = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
     if match:
         token = match.group(1)
-        print('token %s found', token)
-        session_key = session.get(token, None)
-        print('session_key %s found', session_key)
+        print('token %s found' % token)
+        db_token = query_db('select * from tokens where token=?',
+                            [token], one=True)
+        if db_token:
+            cookiekey = db_token['cookiekey']
+            print('cookiekey %s found' % cookiekey)
     else:
         print('no Authorization header found')
 
-    if not session_key:
-        print('requires access control and no session_key found')
+    if not cookiekey:
+        print('requires access control and no cookiekey found')
         return False
 
     # Now make sure the token is for one of this image's services
@@ -148,8 +159,8 @@ def authorise_info_request(identifier):
     for service in services:
         pattern = get_pattern_name(service)
         test_key = get_key('cookie', pattern, identifier_slug)
-        if session_key == test_key:
-            print('User has session key', session_key, 'request authorized')
+        if cookiekey == test_key:
+            print('User has cookie key', cookiekey, 'request authorized')
             return True
 
     print('info request is NOT authorized')
@@ -180,10 +191,11 @@ def authorise_image_request(identifier):
 @app.route('/img/<identifier>')
 def image_id(identifier):
     """Redirect a plain image id"""
-    return redirect(url_for('image_info', identifier=identifier), code=303)
+    resp = redirect(url_for('image_info', identifier=identifier), code=303)
+    return make_acao_response(resp)
 
 
-@app.route('/img/<identifier>/info.json')
+@app.route('/img/<identifier>/info.json', methods=['GET', 'OPTIONS'])
 def image_info(identifier):
     """
         Return the info.json, with the correct HTTP status code,
@@ -191,29 +203,31 @@ def image_info(identifier):
 
         Handle CORS explicitly for clarity
     """
+    print("METHOD:", request.method)
     if request.method == 'OPTIONS':
         print('CORS preflight request for', identifier)
         return preflight()
 
     print('info.json request for', identifier)
     policy = AUTH_POLICY[identifier]
-    uri = "%s%s" % (request.url_root, identifier)
+    uri = "%simg/%s" % (request.url_root, identifier)
     info = web.info(uri, resolve(identifier))
     decorate_info(info, policy, identifier)
 
-
     if authorise_info_request(identifier):
-        return jsonify(info)
+        resp = make_acao_response(jsonify(info), 200)
+        if not policy.get('open'):
+            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        return resp
 
     print('The user is not authed for this resource')
     degraded_version = policy.get('degraded', None)
     if degraded_version:
         redirect_to = "%s%s/info.json" % (request.url_root, degraded_version)
         print('a degraded version is available at', redirect_to)
-        return redirect(redirect_to, code=302)
+        return make_acao_response(redirect(redirect_to, code=302))
 
-
-    return make_response(jsonify(info), 401)
+    return make_acao_response(jsonify(info), 401)
 
 
 
@@ -286,18 +300,21 @@ def make_session(pattern, identifier, origin):
         Establish a session for this user and this resource.
         Your own n a production application
     """
-    cookie_key = get_key('cookie', pattern, identifier)
-    print('Making a session for ', cookie_key)
+    cookiekey = get_key('cookie', pattern, identifier)
+    print('Making a session for ', cookiekey)
+    print('origin is ', origin)
     # The token can be anything, but you shouldn't be able to
     # deduce the cookie value from the token value.
     # In this demo the client cookie is a Flask session cookie,
     # we're not setting an explicit IIIF auth cookie.
     token = uuid.uuid4().hex
     print('minted token:', token)
-    session[cookie_key] = token
-    session[token] = cookie_key
-    # store the origin associated with this token
-    session[token + '-origin'] = origin
+    session[cookiekey] = token
+
+    database = get_db()
+    database.execute('insert into tokens (cookiekey, token, origin) '
+                     'values (?, ?, ?)',  [cookiekey, token, origin])
+    database.commit()
 
 
 def get_key(key_type, pattern, identifier):
@@ -328,11 +345,15 @@ def token_service(pattern, identifier):
     """Token service"""
     origin = request.args.get('origin')
     message_id = request.args.get('messageId')
-    cookie_key = get_key('cookie', pattern, identifier)
-    token = session.get(cookie_key, None)
+    cookiekey = get_key('cookie', pattern, identifier)
+    token = session.get(cookiekey, None)
     token_object = None
+    db_token = None
     if token:
-        session_origin = session.get(token + '-origin', None)   
+        db_token = query_db('select * from tokens where token=?',
+                            [token], one=True)
+    if db_token:
+        session_origin = db_token['origin']
         if origin == session_origin or pattern == 'external':
             # don't enforce origin on external auth
             token_object = {
@@ -340,6 +361,7 @@ def token_service(pattern, identifier):
                 "expiresIn": 600
             }
         else:
+            print("session origin was %s" % session_origin)
             token_object = {
                 "error": "invalidOrigin",
                 "description": "Not the origin supplied at login"
@@ -362,12 +384,55 @@ def token_service(pattern, identifier):
 @app.route('/auth/logout/<pattern>/<identifier>')
 def logout_service(pattern, identifier):
     """Log out service"""
-    cookie_key = get_key('cookie', pattern, identifier)
-    token = session.get(cookie_key)
-    session.pop(cookie_key, None)
-    session.pop(token, None)
-    session.pop(token + '-origin', None)
+    cookiekey = get_key('cookie', pattern, identifier)
+    token = session.get(cookiekey)
+    session.pop(cookiekey, None)
+    database = get_db()
+    database.execute('delete from tokens where token=?', token)
+    database.commit()
     return "You are now logged out"
+
+# Database to hold map of sessions to tokens issued
+# you can't access the session object in an info.json request, because no credentials supplied
+
+def connect_db():
+    """Connects to the specific database."""
+    rv = sqlite3.connect(app.database)
+    rv.row_factory = sqlite3.Row
+    return rv
+
+def get_db():
+    """Opens a new database connection if there is none yet for the
+    current application context.
+    """
+    if not hasattr(g, 'sqlite_db'):
+        g.sqlite_db = connect_db()
+    return g.sqlite_db
+
+
+def query_db(query, args=(), one=False):
+    cur = get_db().execute(query, args)
+    rv = cur.fetchall()
+    cur.close()
+    return (rv[0] if rv else None) if one else rv
+
+@app.teardown_appcontext
+def close_db(error):
+    """Closes the database again at the end of the request."""
+    if hasattr(g, 'sqlite_db'):
+        g.sqlite_db.close()
+
+def init_db():
+    db = get_db()
+    with app.open_resource('schema.sql', mode='r') as f:
+        db.cursor().executescript(f.read())
+    db.commit()
+
+@app.cli.command('initdb')
+def initdb_command():
+    """Initializes the database."""
+    init_db()
+    print('Initialized the database.')
 
 
 if __name__ == '__main__':
