@@ -1,0 +1,21 @@
+<html>
+<body>
+  <p>This window is for cross domain messaging</p>
+  <p>Normally, there's no need for it to have any visible content, but 
+    for this demo it's helpful to show the script.</p>
+  <pre>
+  &lt;script&gt;    
+      window.parent.postMessage(
+        {{ token_object }},
+        "{{ origin }}"
+      );    
+  &lt;/script&gt;
+  </pre>
+<script>    
+    window.parent.postMessage(
+      {{ token_object|safe }},
+      "{{ origin }}"
+    );    
+</script>
+</body>
+</html>

@@ -1,2 +1,3 @@
 graft iiifauth/static
 graft iiifauth/templates
+include iiifauth/schema.sql

@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Login</h2>
+  {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+  <form method=post>
+    <dl>
+      <dt>Username:
+      <dd><input type=text name=username>
+      <dt>Password:
+      <dd><input type=password name=password>
+      <dd><br/><input type=submit value=Login>
+    </dl>
+  </form>
+  <p>
+    In this demo, this is a simple login form. 
+    </p><p>
+    This represents the user's interaction with the content provider, to establish a cookie that the token service can see. In practice, anything could be happening in this window. 
+    </p><p>
+    The user could be redirected to another authentication provider such as Facebook, Google, Twitter, an institutional CAS server or other form of single sign-on. As long as a cookie for the content domain is set and the window closed, anything can happen here.
+  </p>
+{% endblock %}
