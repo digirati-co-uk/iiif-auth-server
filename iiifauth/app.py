@@ -50,11 +50,29 @@ def resolve(identifier):
 def index():
     """List all the info.jsons we have"""
     files = os.listdir(MEDIA_ROOT)
+    manifests = sorted(''.join(f.split('.')[:-2]) for f in files if f.endswith('manifest.json'))
+    return render_template('index.html', images=get_image_list(), manifests=manifests)
+
+
+@app.route('/index.json')
+def index_json():
+    """JSON version of image list"""
+    images = get_image_list()
+    images_as_dicts = [img._asdict() for img in images]
+    for img in images_as_dicts:
+        img['id'] = url_for('image_id', identifier=img['id'], _external=True)
+        img['label'] = img['label'].replace('{server}', url_for('index', _external=True))
+    return make_acao_response(jsonify(images_as_dicts))
+
+
+def get_image_list():
+    """Gather the available images with their labels from the policy doc"""
+    files = os.listdir(MEDIA_ROOT)
     names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
     image_nt = namedtuple('Image', ['id', 'label'])
     images = [image_nt(name, AUTH_POLICY[name]['label']) for name in names]
-    manifests = sorted(''.join(f.split('.')[:-2]) for f in files if f.endswith('manifest.json'))
-    return render_template('index.html', images=images, manifests=manifests)
+    return images
+
 
 @app.route('/manifest/<identifier>')
 def manifest(identifier):
@@ -108,6 +126,11 @@ def decorate_info(info, policy, identifier):
         Augment the info.json with auth service(s) from our
         'database' of auth policy
     """
+    degraded_for = policy.get('degraded_for', None)
+    if degraded_for:
+        identifier = degraded_for
+        policy = AUTH_POLICY[degraded_for]
+
     services = policy.get('auth_services', [])
 
     for service in services:
@@ -233,7 +256,7 @@ def image_info(identifier):
     print('The user is not authed for this resource')
     degraded_version = policy.get('degraded', None)
     if degraded_version:
-        redirect_to = "%s%s/info.json" % (request.url_root, degraded_version)
+        redirect_to = "%simg/%s/info.json" % (request.url_root, degraded_version)
         print('a degraded version is available at', redirect_to)
         return make_acao_response(redirect(redirect_to, code=302))
 
@@ -282,7 +305,12 @@ def handle_login(pattern, identifier, origin, template):
         Handle login GETs and POSTs
     """
     error = None
-    if request.method == 'POST':
+    if identifier != 'shared':
+        policy = AUTH_POLICY.get(identifier, None)
+        if not policy:
+            error = "No cookie service for %s" % identifier
+
+    if not error and request.method == 'POST':
         if request.form['username'] != 'username':
             error = 'Invalid username'
         elif request.form['password'] != 'password':
@@ -302,7 +330,7 @@ def successful_login(pattern, identifier, origin):
     return resp
 
 
-@app.route('/external-cookie/<identifier>')
+@app.route('/external-cookie/<identifier>', methods=['GET', 'POST'])
 def external(identifier):
     """This is a 'secret' login page"""
     return handle_login('external', identifier, None, 'external.html')
@@ -329,7 +357,7 @@ def make_session(pattern, identifier, origin):
     # deduce the cookie value from the token value.
     # In this demo the client cookie is a Flask session cookie,
     # we're not setting an explicit IIIF auth cookie.
-    
+
     # Store the fact that user can access this service in the session
     session[service_id] = True
     # Now store a token associated that represents the user's access to this service
@@ -379,10 +407,12 @@ def token_service(pattern, identifier):
     session_id = get_session_id()
     token_object = None
     db_token = None
+    print("looking for token for session %s, service %s, pattern %s" % (session_id, service_id, pattern))
     if session_id:
         db_token = query_db('select * from tokens where session_id=? and service_id=?',
                             [session_id, service_id], one=True)
     if db_token:
+        print("found token %s" % db_token['token'])
         session_origin = db_token['origin']
         if origin == session_origin or pattern == 'external':
             # don't enforce origin on external auth

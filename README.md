@@ -24,6 +24,15 @@ export FLASK_APP=iiifauth
 export FLASK_DEBUG=true
 flask run
 ```
+or
+```
+. runflask.sh
+```
+
+5. Token information is stored in a sqllite3 db, which needs to be initialised:
+```
+flask initdb
+```
 
 Problems - you will need to install jpeg support for pillow if you don't already have it, e.g., on Ubuntu
 
