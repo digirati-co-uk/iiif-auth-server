@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Session tokens</title>
+</head>
+<body>
+
+  <h3>View session tokens</h3>
+  <p>Sessions older than 1 day are deleted on viewing this page. Most recent sessions listed first.</p>
+  <p><a href="{{ url_for('kill_sessions') }}">Kill my sessions</a> (you are <i>{{ user_session }}</i>)</p>
+  <table cellpadding=4 border=1>
+      <thead>
+          <tr>
+              <th>Session</th>
+              <th>Service</th>
+              <th>Token</th>
+              <th>Created</th>
+              <th>Origin</th>
+          </tr>
+      </thead>
+      <tbody>
+        {% for session_token in session_tokens %}
+            <tr{% if user_session==session_token['session_id'] %}
+                style="background-color: lightseagreen"
+                {% endif %}>
+                <td>{{ session_token['session_id'] }}</td>
+                <td>{{ session_token['service_id'] }}</td>
+                <td>{{ session_token['token'] }}</td>
+                <td>{{ session_token['created'] }}</td>
+                <td>{{ session_token['origin'] }}</td>
+            </tr>
+        {% endfor %}
+      </tbody>      
+  </table>
+    
+</body>
+</html>

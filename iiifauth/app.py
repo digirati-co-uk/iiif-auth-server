@@ -7,10 +7,11 @@ import os
 import re
 import json
 import uuid
-import iiifauth.terms
 import sqlite3
 from datetime import timedelta
+from collections import namedtuple
 
+import iiifauth.terms
 from flask import (
     Flask, make_response, request, session, g, url_for,
     render_template, redirect, send_file, jsonify
@@ -35,8 +36,9 @@ with open(os.path.join(MEDIA_ROOT, 'policy.json')) as policy_data:
 
 @app.before_request
 def func():
-  session.permanent = True
-  session.modified = True
+    """Make our sessions last longer than browser window"""
+    session.permanent = True
+    session.modified = True
 
 
 def resolve(identifier):
@@ -48,7 +50,9 @@ def resolve(identifier):
 def index():
     """List all the info.jsons we have"""
     files = os.listdir(MEDIA_ROOT)
-    images = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
+    names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
+    image_nt = namedtuple('Image', ['id', 'label'])
+    images = [image_nt(name, AUTH_POLICY[name]['label']) for name in names]
     manifests = sorted(''.join(f.split('.')[:-2]) for f in files if f.endswith('manifest.json'))
     return render_template('index.html', images=images, manifests=manifests)
 
@@ -136,7 +140,7 @@ def authorise_info_request(identifier):
         print('%s is open, no auth required' % identifier)
         return True
 
-    cookiekey = None
+    service_id = None
     match = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
     if match:
         token = match.group(1)
@@ -144,13 +148,13 @@ def authorise_info_request(identifier):
         db_token = query_db('select * from tokens where token=?',
                             [token], one=True)
         if db_token:
-            cookiekey = db_token['cookiekey']
-            print('cookiekey %s found' % cookiekey)
+            service_id = db_token['service_id']
+            print('service_id %s found' % service_id)
     else:
         print('no Authorization header found')
 
-    if not cookiekey:
-        print('requires access control and no cookiekey found')
+    if not service_id:
+        print('requires access control and no service_id found')
         return False
 
     # Now make sure the token is for one of this image's services
@@ -158,14 +162,17 @@ def authorise_info_request(identifier):
     identifier_slug = 'shared' if policy.get('shared', False) else identifier
     for service in services:
         pattern = get_pattern_name(service)
-        test_key = get_key('cookie', pattern, identifier_slug)
-        if cookiekey == test_key:
-            print('User has cookie key', cookiekey, 'request authorized')
+        test_service_id = get_service_id(pattern, identifier_slug)
+        if service_id == test_service_id:
+            print('User has access to service', service_id, ' - request authorised')
             return True
 
-    print('info request is NOT authorized')
+    print('info request is NOT authorised')
     return False
 
+def get_session_id():
+    """Helper for session_id"""
+    return session.get('session_id', None)
 
 def authorise_image_request(identifier):
     """
@@ -180,8 +187,11 @@ def authorise_image_request(identifier):
     # does the request have a cookie acquired from this image's cookie service(s)?
     for service in services:
         pattern = get_pattern_name(service)
-        test_key = get_key('cookie', pattern, identifier_slug)
-        if session.get(test_key, None):
+        test_service_id = get_service_id(pattern, identifier_slug)
+        if session.get(test_service_id, None):
+            # we stored the user's access to this service in the session.
+            # There will also be a row in the tokens table, but we don't need that
+            # This is an example implementation, there are many ways to do this.
             return True
 
     # handle other possible authorisation mechanisms, such as IP
@@ -249,6 +259,9 @@ def image_api_request(identifier, **kwargs):
 def cookie_service(pattern, identifier):
     """Cookie service (might be a login interaction pattern. Doesn't have to be)"""
     origin = request.args.get('origin')
+    if origin is None:
+        # http://iiif.io/api/auth/1.0/#interaction-with-the-access-cookie-service
+        return make_response("Error - no origin supplied", 400)
 
     if pattern == 'login':
         return handle_login(pattern, identifier, origin, 'login.html')
@@ -298,30 +311,47 @@ def external(identifier):
 def make_session(pattern, identifier, origin):
     """
         Establish a session for this user and this resource.
-        Your own n a production application
+        This is not a production application.
     """
-    cookiekey = get_key('cookie', pattern, identifier)
-    print('Making a session for ', cookiekey)
+    # Get or create a session ID to keep track of this user's permissions
+    session_id = get_session_id()
+    if session_id is None:
+        session_id = uuid.uuid4().hex
+        session['session_id'] = session_id
+    print("This user's session is", session_id)
+
+    if origin is None:
+        origin = "[No origin supplied]"
+    service_id = get_service_id(pattern, identifier)
+    print('User authed for service ', service_id)
     print('origin is ', origin)
     # The token can be anything, but you shouldn't be able to
     # deduce the cookie value from the token value.
     # In this demo the client cookie is a Flask session cookie,
     # we're not setting an explicit IIIF auth cookie.
+    
+    # Store the fact that user can access this service in the session
+    session[service_id] = True
+    # Now store a token associated that represents the user's access to this service
     token = uuid.uuid4().hex
     print('minted token:', token)
-    session[cookiekey] = token
+    print('session id:', session_id)
 
     database = get_db()
-    database.execute('insert into tokens (cookiekey, token, origin) '
-                     'values (?, ?, ?)',  [cookiekey, token, origin])
+    database.execute("delete from tokens where session_id=? and service_id=?",
+                     [session_id, service_id])
+    database.commit()
+    database.execute("insert into tokens (session_id, service_id, token, origin, created) "
+                     "values (?, ?, ?, ?, datetime('now'))",
+                     [session_id, service_id, token, origin])
     database.commit()
 
 
-def get_key(key_type, pattern, identifier):
+def get_service_id(pattern, identifier):
     """
         Simple format for session keys used to maintain session
     """
-    return "%s/%s/%s" % (key_type, pattern, identifier)
+    return "cookie/%s/%s" % (pattern, identifier)
 
 
 def split_key(key):
@@ -345,19 +375,19 @@ def token_service(pattern, identifier):
     """Token service"""
     origin = request.args.get('origin')
     message_id = request.args.get('messageId')
-    cookiekey = get_key('cookie', pattern, identifier)
-    token = session.get(cookiekey, None)
+    service_id = get_service_id(pattern, identifier)
+    session_id = get_session_id()
     token_object = None
     db_token = None
-    if token:
-        db_token = query_db('select * from tokens where token=?',
-                            [token], one=True)
+    if session_id:
+        db_token = query_db('select * from tokens where session_id=? and service_id=?',
+                            [session_id, service_id], one=True)
     if db_token:
         session_origin = db_token['origin']
         if origin == session_origin or pattern == 'external':
             # don't enforce origin on external auth
             token_object = {
-                "accessToken": token,
+                "accessToken": db_token['token'],
                 "expiresIn": 600
             }
         else:
@@ -384,22 +414,51 @@ def token_service(pattern, identifier):
 @app.route('/auth/logout/<pattern>/<identifier>')
 def logout_service(pattern, identifier):
     """Log out service"""
-    cookiekey = get_key('cookie', pattern, identifier)
-    token = session.get(cookiekey)
-    session.pop(cookiekey, None)
+    service_id = get_service_id(pattern, identifier)
+    session.pop('service_id')
     database = get_db()
-    database.execute('delete from tokens where token=?', token)
+    database.execute('delete from tokens where session_id=? and service_id=?',
+                     [get_session_id(), service_id])
     database.commit()
     return "You are now logged out"
+
 
 # Database to hold map of sessions to tokens issued
 # you can't access the session object in an info.json request, because no credentials supplied
 
+
+@app.route('/sessiontokens')
+def view_session_tokens():
+    """concession to admin dashboard"""
+    database = get_db()
+    database.execute("delete from tokens where created < date('now','-1 day')")
+    database.commit()
+    session_tokens = query_db('select * from tokens order by created desc')
+    return render_template('session_tokens.html',
+                           session_tokens=session_tokens,
+                           user_session=get_session_id())
+
+@app.route('/killsessions')
+def kill_sessions():
+    """Clear up all my current session tokens"""
+    session_id = get_session_id()
+    if session_id:
+        database = get_db()
+        database.execute("delete from tokens where session_id=?", [session_id])
+        database.commit()
+        for key in list(session.keys()):
+            if key != 'session_id':
+                session.pop(key, None)
+
+    return redirect(url_for('view_session_tokens'))
+
+
 def connect_db():
     """Connects to the specific database."""
-    rv = sqlite3.connect(app.database)
-    rv.row_factory = sqlite3.Row
-    return rv
+    conn = sqlite3.connect(app.database)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 
 def get_db():
     """Opens a new database connection if there is none yet for the

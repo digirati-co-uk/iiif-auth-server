@@ -3,7 +3,8 @@
   <h3>Images</h3>
   <ul class=images>
   {% for image in images %}
-    <li><a href="{{ url_for('image_info', identifier=image) }}">{{ image }}</a></li>
+    <li><a href="{{ url_for('image_info', identifier=image.id) }}">{{ image.id }}</a>
+    <br/>{{ image.label }}</li>
   {% else %}
     <li><em>No images found!</em>
   {% endfor %}
@@ -16,4 +17,6 @@
     <li><em>No manifests found!</em>
   {% endfor %}
   </ul>
+  <hr/>
+  <p><a href="{{ url_for('view_session_tokens') }}">View session tokens</a></p>
 {% endblock %}
