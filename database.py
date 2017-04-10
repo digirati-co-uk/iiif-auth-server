@@ -1,4 +1,4 @@
-import iiifauth.iiif_auth_server
+import iiifauth.iiif_auth_server as server
 
-iiif_auth_server.initdb_command()
+server.initdb_command()
 

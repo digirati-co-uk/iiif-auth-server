@@ -21,6 +21,6 @@ COPY iiifauth.ini /opt/iiif/
 COPY wsgi.py /opt/iiif/
 COPY database.py /opt/iiif/
 
-RUN cd /opt/iiif && python database.py
+RUN cd /opt/iiif && export FLASK_APP='iiifauth' && python database.py
 
 CMD /opt/iiif/run_server.sh
