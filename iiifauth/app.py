@@ -200,7 +200,7 @@ def get_session_id():
     """Helper for session_id"""
     return session.get('session_id', None)
 
-def authorise_image_request(identifier):
+def authorise_resource_request(identifier):
     """
         Authorise image API requests based on Cookie (or possibly other mechanisms)
     """
@@ -273,7 +273,7 @@ def image_api_request(identifier, **kwargs):
     """
         A IIIF Image API request; use iiif2 to generate the tile
     """
-    if authorise_image_request(identifier):
+    if authorise_resource_request(identifier):
         params = web.Parse.params(identifier, **kwargs)
         tile = iiif.IIIF.render(resolve(identifier), **params)
         return send_file(tile, mimetype=tile.mime)
@@ -307,6 +307,9 @@ def handle_login(pattern, identifier, origin, template):
     """
         Handle login GETs and POSTs
     """
+    if authorise_resource_request(identifier):
+        return successful_login(pattern, identifier, origin)
+
     error = None
     if identifier != 'shared':
         policy = AUTH_POLICY.get(identifier, None)
