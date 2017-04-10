@@ -24,6 +24,9 @@ app = Flask(__name__)
 app.permanent_session_lifetime = timedelta(minutes=10)
 app.secret_key = 'Set a sensible secret key here'
 app.database = os.path.join(app.root_path, 'iiifauth.db')
+app.config.update(dict(    
+    SERVER_NAME=os.environ.get('IIIFAUTH_SERVER_NAME', None) 
+))
 
 # some globals
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
