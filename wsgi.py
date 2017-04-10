@@ -1,4 +1,2 @@
-from iiifauth import app as application
+from iiifauth.iiif_auth_server import app as application
 
-if __name__ == "__main__":
-    application.run(debug=True)

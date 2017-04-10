@@ -7,5 +7,5 @@ sleep 1
 echo "forcing first log rotation"
 logrotate -f /etc/logrotate.conf
 
-uwsgi --ini /opt/iiifauth/iiifauth.ini
+cd /opt/iiif && uwsgi --ini /opt/iiif/iiifauth.ini
 
