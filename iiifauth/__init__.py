@@ -1,1 +1,1 @@
-from .app import app
+from .iiif_auth_server import app
