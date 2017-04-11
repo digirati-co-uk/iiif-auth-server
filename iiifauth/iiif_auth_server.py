@@ -441,7 +441,7 @@ def token_service(pattern, identifier):
     if message_id:
         # client is a browser
         token_object['messageId'] = message_id
-        return render_template('token.html', token_object=token_object, origin=origin)
+        return render_template('token.html', token_object=json.dumps(token_object), origin=origin)
 
     # client isn't using postMessage
     return jsonify(token_object)
