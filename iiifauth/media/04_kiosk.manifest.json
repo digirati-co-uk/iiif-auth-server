@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Kiosk",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "This interaction pattern requires direct interaction without the user initiating it. The browser would need to be set up for this. Popups emabled for the domain."
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/04_gene_cernan",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 2581,
+          "width": 1918,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "04_gene_cernan.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/04_gene_cernan"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

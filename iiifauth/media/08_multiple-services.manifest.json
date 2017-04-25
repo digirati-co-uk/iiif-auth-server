@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Multiple services",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "This has external and clickthrough."
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/08_portmeirion",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 1200,
+          "width": 1600,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "08_portmeirion.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/08_portmeirion"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

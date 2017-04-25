@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "External",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "No UI is offered by the viewer. You need to have acquired the cookie by logging in somewhere else. Go to {content-server}/external-cookie/05_cader_idris.jpg"
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/05_cader_idris",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 2000,
+          "width": 3000,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "05_cader_idris.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/05_cader_idris"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
