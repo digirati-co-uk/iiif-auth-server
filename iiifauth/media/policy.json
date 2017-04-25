@@ -165,6 +165,21 @@
                 "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
             }
         ]
+    },
+    "shared" : {
+        "shared" : true,
+        "description" : "this is used for shared login",
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ]
     }
 }
 
