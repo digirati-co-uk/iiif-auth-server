@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Degraded",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "This interaction pattern assumes the user can interact with something in the opened window"
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/02_gauguin",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 2506,
+          "width": 3176,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "02_gauguin.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/02_gauguin"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

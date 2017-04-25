@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Clickthrough",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "This interaction pattern closes the window straight away"
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/03_clickthrough",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 2581,
+          "width": 1918,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "03_clickthrough.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/03_clickthrough"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

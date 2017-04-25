@@ -90,13 +90,14 @@ def manifest(identifier):
         for canvas in new_manifest['sequences'][0]['canvases']:
             image = canvas['images'][0]['resource']
             image_identifier = image['@id']
-            canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
-            image['service'] = {
-                "@context" : iiifauth.terms.CONTEXT_IMAGE,
-                "@id" : "%simg/%s" % (request.url_root, image_identifier),
-                "profile" : iiifauth.terms.PROFILE_IMAGE
-            }
-            image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
+            if not image_identifier.startswith("http"):
+                canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
+                image['service'] = {
+                    "@context" : iiifauth.terms.CONTEXT_IMAGE,
+                    "@id" : "%simg/%s" % (request.url_root, image_identifier),
+                    "profile" : iiifauth.terms.PROFILE_IMAGE
+                }
+                image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
 
     return make_acao_response(jsonify(new_manifest), 200)
 
