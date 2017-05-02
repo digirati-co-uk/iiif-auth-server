@@ -116,6 +116,26 @@
           ]
         },
         {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/08_portmeirion",
+          "@type": "sc:Canvas",
+          "label": "kiosk",
+          "height": 1200,
+          "width": 1600,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "08_portmeirion.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/08_portmeirion"
+            }
+          ]
+        },
+        {
           "@id": "https://iiifauth.digtest.co.uk/canvases/05_cader_idris",
           "@type": "sc:Canvas",
           "label": "external",
