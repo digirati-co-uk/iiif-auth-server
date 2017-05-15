@@ -124,6 +124,13 @@
         "label": "Open content for reference",
         "open" : true
     },
+    "10_babel.jpg" : {  
+        "label": "maxWidth enforced by server",
+        "open" : true,
+        "maxWidth": 777,
+        "width": 4945,
+        "height": 3973
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [
