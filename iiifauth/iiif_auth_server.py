@@ -159,6 +159,11 @@ def decorate_info(info, policy, identifier):
     else:
         info['service'] = services
 
+    if policy['maxWidth'] is not None and policy['maxWidth'] > 0:
+        info['profile'].append({
+            "maxWidth": policy['maxWidth']
+        })
+
 
 def authorise_info_request(identifier):
     """Authorise info.json request based on token"""
@@ -276,11 +281,56 @@ def image_api_request(identifier, **kwargs):
     """
     if authorise_resource_request(identifier):
         params = web.Parse.params(identifier, **kwargs)
+        policy = AUTH_POLICY[identifier]
+        max_width = policy['maxWidth']
+        if max_width is not None:
+            # for the demo, please supply width and height in the policy if max... applies
+            # I could go and find it out but it will be slow for tile requests.
+            full_w = policy['width']
+            full_h = policy['height']
+            req_w, req_h = get_actual_dimensions(
+                params.get('region'),
+                params.get('size'),
+                full_w,
+                full_h)
+            if req_w > max_width or req_h > max_width:
+                return make_response("Requested size too large, maxWidth is " + str(max_width))
+
         tile = iiif.IIIF.render(resolve(identifier), **params)
         return send_file(tile, mimetype=tile.mime)
 
     return make_response("Not authorised", 401)
 
+
+def get_actual_dimensions(region, size, full_w, full_h):
+    """
+        TODO: iiif2 does not support !w,h syntax, or max...
+        need to update it to 2.1 and !
+        in the meantime I will just support this operation on w,h or w, syntax in the size slot
+        and not for percent
+        THIS IS NOT HOW IT SHOULD BE DONE...
+    """
+    if region.get('full', False):
+        r_width, r_height = full_w, full_h
+    else:
+        r_width = region['w']
+        r_height = region['h']
+
+    if size.get('full', False):
+        width, height = r_width, r_height
+    else:
+        width, height = size['w'], size['h']
+
+    if width and not height:
+        # scale height to width, preserving aspect ratio
+        height = int(round(r_height * float(width / float(r_width))))
+
+    elif height and not width:
+        # scale to height, preserving aspect ratio
+        width = int(round(float(r_width) * float(height / float(r_height))))
+
+    print("width, height", width, height)
+    return width, height
 
 @app.route('/auth/cookie/<pattern>/<identifier>', methods=['GET', 'POST'])
 def cookie_service(pattern, identifier):
