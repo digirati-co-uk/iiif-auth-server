@@ -158,11 +158,11 @@ def decorate_info(info, policy, identifier):
         info['service'] = services[0]
     else:
         info['service'] = services
-    
-    maxWidth = policy.get('maxWidth', 0)
-    if maxWidth is not None:
+
+    max_width = policy.get('maxWidth', None)
+    if max_width is not None:
         info['profile'].append({
-            "maxWidth": maxWidth
+            "maxWidth": max_width
         })
 
 
@@ -283,7 +283,7 @@ def image_api_request(identifier, **kwargs):
     if authorise_resource_request(identifier):
         params = web.Parse.params(identifier, **kwargs)
         policy = AUTH_POLICY[identifier]
-        max_width = policy['maxWidth']
+        max_width = policy.get('maxWidth', None)
         if max_width is not None:
             # for the demo, please supply width and height in the policy if max... applies
             # I could go and find it out but it will be slow for tile requests.
