@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "maxWidth",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "This has a maxWidth of 777."
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/10_babel",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 3973,
+          "width": 4945,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "10_babel.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/10_babel"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
