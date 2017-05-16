@@ -158,10 +158,11 @@ def decorate_info(info, policy, identifier):
         info['service'] = services[0]
     else:
         info['service'] = services
-
-    if policy['maxWidth'] is not None and policy['maxWidth'] > 0:
+    
+    maxWidth = policy.get('maxWidth', 0)
+    if maxWidth is not None:
         info['profile'].append({
-            "maxWidth": policy['maxWidth']
+            "maxWidth": maxWidth
         })
 
 
