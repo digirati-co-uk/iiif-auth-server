@@ -1,0 +1,41 @@
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json",
+  "@id": "..",
+  "@type": "sc:Manifest",
+  "label": "Degraded",
+  "metadata": [
+    {
+      "label": "Note",
+      "value": "The client will detect the redirect. maxWidth enforced on degraded version, not on live version."
+    }
+  ],
+  "sequences": [
+    {
+      "@id": "..",
+      "@type": "sc:Sequence",
+      "label": "Sequence s0",
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/11_kitty_joyner",
+          "@type": "sc:Canvas",
+          "label": " - ",
+          "height": 3000,
+          "width": 2400,
+          "images": [
+            {
+              "@id": "",
+              "@type": "oa:Annotation",
+              "motivation": "sc:painting",
+              "resource": {
+                "@id": "11_kitty_joyner.jpg",
+                "@type": "dctypes:Image",
+                "format": "image/jpeg"
+              },
+              "on": "https://iiifauth.digtest.co.uk/canvases/11_kitty_joyner"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
