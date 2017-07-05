@@ -130,6 +130,7 @@ def decorate_info(info, policy, identifier):
         Augment the info.json with auth service(s) from our
         'database' of auth policy
     """
+    original_policy = policy
     degraded_for = policy.get('degraded_for', None)
     if degraded_for:
         identifier = degraded_for
@@ -159,7 +160,7 @@ def decorate_info(info, policy, identifier):
     else:
         info['service'] = services
 
-    max_width = policy.get('maxWidth', None)
+    max_width = original_policy.get('maxWidth', None)
     if max_width is not None:
         info['profile'].append({
             "maxWidth": max_width
