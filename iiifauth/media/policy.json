@@ -131,6 +131,31 @@
         "width": 4945,
         "height": 3973
     },
+    "11_kitty_joyner.jpg" : {  
+        "label": "Anyone can zoom, login reqd for download",
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution to access hi res downloads",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view the full-quality content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Zoom only",
+                "failureDescription": "You will only be able to zoom in, but not download hi res versions."
+            }
+        ],
+        "degraded": "11_kitty_joyner_degraded.jpg",
+        "width": 2400,
+        "height": 3000
+    },    
+    "11_kitty_joyner_degraded.jpg" : {
+        "label": "degraded version - same image, but maxWidth=512",
+        "open" : true,
+        "degraded_for": "11_kitty_joyner.jpg",
+        "maxWidth": 512,
+        "width": 2400,
+        "height": 3000
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [
