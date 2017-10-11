@@ -85,4 +85,103 @@ The current auth spec is very much designed for auth on services. It has no know
 
 My _client_ demo has no knowledge of the Presentation API either, it only deals with image services.
 
-it needs to come up to Presentation land to demo auth on resources. 
+it needs to come up to Presentation land to demo auth on resources.
+
+## Examples
+
+These are working:
+
+* [Manifest](https://iiifauth.digtest.co.uk/manifest/20_resource_direct)
+* [Resource](https://iiifauth.digtest.co.uk/resources/20_resource_direct.mp4) - 401
+* [services.json](https://iiifauth.digtest.co.uk/service-description/20_resource_direct.mp4/services.json) - 401, but you see the json as normal
+
+These _should_ work if you follow the auth flow as specced, but I don't have a demo client just yet.
+
+The manifest - please excuse horrible mash of Presentation 2 and 3, hacked for demo:
+
+```json
+{
+  "@context": "http://iiif.io/api/presentation/2/context.json", 
+  "@id": "https://iiifauth.digtest.co.uk/manifest/20_resource_direct", 
+  "@type": "sc:Manifest", 
+  "label": "Direct resource, not a service", 
+  "metadata": [
+    {
+      "label": "Note", 
+      "value": "The client needs to detect a servicesService (or whatever it's called)"
+    }
+  ], 
+  "sequences": [
+    {
+      "@id": "https://iiifauth.digtest.co.uk/manifest/20_resource_direct/sequence", 
+      "@type": "sc:Sequence", 
+      "canvases": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/canvases/20_resource_direct", 
+          "@type": "sc:Canvas", 
+          "height": 800, 
+          "items": [
+            {
+              "@id": "https://iiifauth.digtest.co.uk/resource-annos/20_resource_direct.mp4", 
+              "@type": "oa:Annotation", 
+              "motivation": "sc:painting", 
+              "on": "https://iiifauth.digtest.co.uk/canvases/20_resource_direct", 
+              "resource": {
+                "@id": "https://iiifauth.digtest.co.uk/resources/20_resource_direct.mp4", 
+                "@type": "dctypes:Video", 
+                "format": "video/mp4", 
+                "service": {
+                  "@context": "http://iiif.io/api/services_xxx/1/context.json", 
+                  "@id": "https://iiifauth.digtest.co.uk/service-description/20_resource_direct.mp4", 
+                  "profile": "http://iiif.io/api/services_xxx/1/info"
+                }
+              }
+            }
+          ], 
+          "label": " - ", 
+          "width": 600
+        }
+      ], 
+      "label": "Sequence s0"
+    }
+  ]
+}
+```
+
+And here's the services.json probe/descriptor - with the auth services asserted as **for** the resource. `service` is declared for the mp4 (.../resources/...mp4) rather than the information document (.../service-description/...mp4/services.json):
+
+```json
+{
+  "@context": "http://iiif.io/api/services_xxx/1/context.json", 
+  "@id": "https://iiifauth.digtest.co.uk/service-description/20_resource_direct.mp4", 
+  "profile": "http://iiif.io/api/services_xxx/1/info", 
+  "resource": {
+    "@id": "https://iiifauth.digtest.co.uk/resources/20_resource_direct.mp4", 
+    "@type": "dctypes:Video", 
+    "format": "video/mp4", 
+    "service": {
+      "@context": "http://iiif.io/api/auth/1/context.json", 
+      "@id": "https://iiifauth.digtest.co.uk/auth/cookie/login/20_resource_direct.mp4", 
+      "confirmLabel": "Login", 
+      "description": "Example Institution requires that you log in with your example account to view this content.", 
+      "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>", 
+      "failureHeader": "Authentication Failed", 
+      "header": "Please Log In", 
+      "label": "Login to Example Institution", 
+      "profile": "http://iiif.io/api/auth/1/login", 
+      "service": [
+        {
+          "@id": "https://iiifauth.digtest.co.uk/auth/token/login/20_resource_direct.mp4", 
+          "profile": "http://iiif.io/api/auth/1/token"
+        }, 
+        {
+          "@id": "https://iiifauth.digtest.co.uk/auth/logout/login/20_resource_direct.mp4", 
+          "label": "log out", 
+          "profile": "http://iiif.io/api/auth/1/logout"
+        }
+      ]
+    }
+  }
+}
+```
+
