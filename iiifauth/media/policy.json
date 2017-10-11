@@ -156,6 +156,21 @@
         "width": 2400,
         "height": 3000
     },
+    "20_resource_direct.mp4" : {   
+        "label": "Not a service - Standard login for a direct resource",    
+        "behaviour": "resource",     
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ]
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [
