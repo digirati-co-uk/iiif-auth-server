@@ -1,0 +1,44 @@
+{
+    "@context": [
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Direct resource, not a service; separate probe service" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "The auth service is declared directly on a resource, and provides a separate probe service for the client to use to determine access." ] }
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/22_av_stars",
+        "type": "Canvas",
+        "label": " - ",
+        "width": 640,
+        "height": 480,
+        "duration": 5.0,
+        "items": [
+          {
+            "id": "https://iiifauth.digtest.co.uk/canvases/22_av_stars/p1",
+            "type": "AnnotationPage",
+            "items": [
+              {
+                "id": "",
+                "type": "Annotation",
+                "motivation": "painting",
+                "body": {
+                  "id": "22_av_stars.mp4",
+                  "type": "Video",
+                  "format": "video/mp4"
+                },
+                "target": "https://iiifauth.digtest.co.uk/canvases/22_av_stars"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
