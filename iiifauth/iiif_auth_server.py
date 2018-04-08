@@ -65,7 +65,9 @@ def get_image_summaries():
         if img['behaviour'] == 'resource':
             # this is not a service; it's the resource itself
             policy = AUTH_POLICY[img['id']]
-            assert_auth_services(img, policy, img['id'])
+            assert_auth_services(img, policy, img['id'], True)
+            img['partOf'] = url_for('manifest', identifier=img["id"][:-4], _external=True)
+            img['type'] = get_dc_type(img["id"])
             img['id'] = url_for('resource_request', identifier=img['id'], _external=True)
         else:
             img['id'] = url_for('image_id', identifier=img['id'], _external=True)
@@ -73,10 +75,19 @@ def get_image_summaries():
     return images_as_dicts
 
 
+def get_dc_type(filename):
+    extension = filename.split('.')[-1]
+    if extension == "mp4":
+        return "Video"
+    if extension == "pdf":
+        return "Text"
+    return "Unknown"
+
+
 @app.route('/index.json')
 def index_json():
     """JSON version of image list"""
-    return make_acao_response(jsonify(get_image_summaries()))
+    return make_acao_response(jsonify(get_image_summaries()), 200, True)
 
 
 def get_image_list():
@@ -113,50 +124,62 @@ def make_manifest(identifier):
             new_manifest['sequences'][0]['@id'] = (
                 "%smanifest/%s/sequence" % (request.url_root, identifier))
             canvases = new_manifest['sequences'][0]['canvases']
-
-        for canvas in canvases:
-            # Currently this demo uses a P2 manifest for image services
-            # and a P3 manifest for non-image-service auth
-            # TODO - an example of a P3 with image service
-            images = canvas.get('images', [])
-            if len(images) > 0:
-                # Presentation 2
-                image = canvas['images'][0]['resource']
-                image_identifier = image['@id']
-                if not image_identifier.startswith("http"):
-                    canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
-                    image['service'] = {
-                        "@context" : iiifauth.terms.CONTEXT_IMAGE,
-                        "@id" : "%simg/%s" % (request.url_root, image_identifier),
-                        "profile" : iiifauth.terms.PROFILE_IMAGE
-                    }
-                    image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
-            # In order to demo non-service auth we have to add a strange hybrid of prezi3
-            items = canvas.get('items', [])
-            if len(items) > 0:
-                # Presentation 3
-                anno = canvas['items'][0]['items'][0]
-                resource = anno['body']
-                resource_identifier = resource['id']
-                if not resource_identifier.startswith("http"):
-                    anno['id'] = "%sresource-annos/%s" % (request.url_root, resource_identifier)
-                    policy = AUTH_POLICY[resource_identifier]
-                    assert_auth_services(resource, policy, resource_identifier)
-                    resource['id'] = "%sresources/%s" % (request.url_root, resource_identifier)
-    
+        
+        rendering = new_manifest.get("rendering", [])
+        if len(rendering) > 0:
+            # just put the auth services on the rendering for demo
+            resource_identifier = rendering[0]['id']
+            policy = AUTH_POLICY[resource_identifier]
+            assert_auth_services(rendering[0], policy, resource_identifier, True)
+            rendering[0]['id'] = "%sresources/%s" % (request.url_root, resource_identifier)
+        else:
+            for canvas in canvases:
+                # Currently this demo uses a P2 manifest for image services
+                # and a P3 manifest for non-image-service auth
+                # TODO - an example of a P3 with image service
+                images = canvas.get('images', [])
+                if len(images) > 0:
+                    # Presentation 2
+                    image = canvas['images'][0]['resource']
+                    image_identifier = image['@id']
+                    if not image_identifier.startswith("http"):
+                        canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
+                        image['service'] = {
+                            "@context" : iiifauth.terms.CONTEXT_IMAGE,
+                            "@id" : "%simg/%s" % (request.url_root, image_identifier),
+                            "profile" : iiifauth.terms.PROFILE_IMAGE
+                        }
+                        image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
+                # In order to demo non-service auth we have to add a strange hybrid of prezi3
+                items = canvas.get('items', [])
+                if len(items) > 0:
+                    # Presentation 3
+                    anno = canvas['items'][0]['items'][0]
+                    resource = anno['body']
+                    resource_identifier = resource['id']
+                    if not resource_identifier.startswith("http"):
+                        anno['id'] = "%sresource-annos/%s" % (request.url_root, resource_identifier)
+                        policy = AUTH_POLICY[resource_identifier]
+                        assert_auth_services(resource, policy, resource_identifier, True)
+                        resource['id'] = "%sresources/%s" % (request.url_root, resource_identifier)
+        
     return new_manifest
 
 
 @app.route('/manifest/<identifier>')
 def manifest(identifier):
     new_manifest = make_manifest(identifier)
-    return make_acao_response(jsonify(new_manifest), 200)
+    return make_acao_response(jsonify(new_manifest), 200, True)
 
 
-def make_acao_response(response_object, status=None):
+def make_acao_response(response_object, status=None, cache=None):
     """We're handling CORS directly for clarity"""
     resp = make_response(response_object, status)
     resp.headers['Access-Control-Allow-Origin'] = '*'
+    if cache is None:
+        resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    else:
+        resp.headers['Cache-Control'] = 'public, max-age=120'
     return resp
 
 
@@ -190,7 +213,8 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
     services = policy.get('auth_services', [])
 
     for service in services:
-        service['@context'] = iiifauth.terms.CONTEXT_AUTH
+        if not prezi3:
+            service['@context'] = iiifauth.terms.CONTEXT_AUTH
         pattern = get_pattern_name(service)
         identifier_slug = 'shared' if policy.get('shared', False) else identifier
         service['@id'] = "%sauth/cookie/%s/%s" % (request.url_root, pattern, identifier_slug)
@@ -205,9 +229,16 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
                 "label": "log out"
             }
         ]
+
+        if prezi3:
+            service["@type"] = "AuthCookieService1"
+            service['service'][0]['@type'] = "AuthTokenService1"
+            service['service'][1]['@type'] = "AuthLogoutService1"
+
         if policy.get("explicit_probe", False):
             service['service'].append({
                 "@id": "%sprobe/%s" % (request.url_root, identifier),
+                "@type": "AuthProbeService1",
                 "profile" : iiifauth.terms.PROFILE_PROBE, 
             })
 
@@ -323,10 +354,7 @@ def image_info(identifier):
     assert_auth_services(info, policy, identifier)
 
     if authorise_probe_request(identifier):
-        resp = make_acao_response(jsonify(info), 200)
-        if not policy.get('open'):
-            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        return resp
+        return make_acao_response(jsonify(info), 200)
 
     print('The user is not authed for this resource')
     degraded_version = policy.get('degraded', None)
@@ -659,11 +687,7 @@ def resource_request(identifier):
 
     if request.method == 'HEAD':
         if authorise_probe_request(identifier):
-            resp = make_acao_response('', 200)
-            policy = AUTH_POLICY[identifier]
-            if not policy.get('open'):
-                resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            return resp
+            return make_acao_response('', 200)
         return make_acao_response('', 401)
 
     if authorise_resource_request(identifier):
@@ -679,11 +703,7 @@ def probe(identifier):
     
     message = "Probe service for " + identifier + "<br/>Status: "
     if authorise_probe_request(identifier):
-        resp = make_acao_response(message + "200", 200)
-        policy = AUTH_POLICY[identifier]
-        if not policy.get('open'):
-            resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        return resp
+        return make_acao_response(message + "200", 200)
     return make_acao_response(message + "401", 401)
     
 

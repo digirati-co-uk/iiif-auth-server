@@ -1,0 +1,34 @@
+{
+    "@context": [
+      "http://iiif.io/api/auth/1/context.json",
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Direct resource, not a service; PDF as rendering (i.e. not an anno)" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "The auth service is declared directly on a resource. The resource in question here is NOT linked via annotation, but via rendering. PDF of Prezi3 spec." ] }
+      }
+    ],
+    "rendering": [
+      {
+        "id": "24_pdf_prezi3.pdf",
+        "type": "Text",
+        "format": "application/pdf",
+        "label": "PDF of Prezi3 spec"
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/24_pdf_prezi3",
+        "type": "Canvas",
+        "label": " - ",
+        "width": 2100,
+        "height": 2970,
+        "items": []
+      }
+    ]
+  }
