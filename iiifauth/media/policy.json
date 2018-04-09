@@ -156,9 +156,45 @@
         "width": 2400,
         "height": 3000
     },
-    "20_resource_direct.mp4" : {   
-        "label": "Not a service - Standard login for a direct resource",    
+    "20_av_big_buck_bunny.mp4" : {   
+        "label": "Not a service - basic AV test with no auth",    
+        "behaviour": "resource",
+        "open" : true
+    },
+    "21_av_lego.mp4" : {
+        "label": "Not a service - AV test with no explicit probe",    
+        "behaviour": "resource",    
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ]
+    },
+    "22_av_stars.mp4" : {
+        "label": "Not a service - AV test with separate probe",    
         "behaviour": "resource",     
+        "explicit_probe": true,
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ]
+    },
+    "24_pdf_prezi3.pdf" : {
+        "label": "Resource linked via rendering - a PDF",    
+        "behaviour": "resource",    
         "auth_services" : [
             {
                 "profile": "http://iiif.io/api/auth/1/login",

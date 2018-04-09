@@ -1,0 +1,45 @@
+{
+    "@context": [
+      "http://iiif.io/api/auth/1/context.json",
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Direct resource, not a service; probe defaults to resource" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "The auth service is declared directly on a resource, and the client should make a HEAD request to the resource to determine access." ] }
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/21_av_lego",
+        "type": "Canvas",
+        "label": " - ",
+        "width": 560,
+        "height": 320,
+        "duration": 5.0,
+        "items": [
+          {
+            "id": "https://iiifauth.digtest.co.uk/canvases/21_av_lego/p1",
+            "type": "AnnotationPage",
+            "items": [
+              {
+                "id": "",
+                "type": "Annotation",
+                "motivation": "painting",
+                "body": {
+                  "id": "21_av_lego.mp4",
+                  "type": "Video",
+                  "format": "video/mp4"
+                },
+                "target": "https://iiifauth.digtest.co.uk/canvases/21_av_lego"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
