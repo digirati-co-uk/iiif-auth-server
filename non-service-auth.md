@@ -4,7 +4,7 @@
 
 Implementing access control for IIIF Image API services treats the image information document (the info.json) as a **probe**. The client can always see the JSON-LD body of the info.json response, but the HTTP status code on the response will vary depending on the user's access to that service. If the info.json returns HTTP 401, the client knows that image requests to that service will also get 401s, and it should look for IIIF auth services in the info.json response to interact with and, if successful, remedy the user's lack of access to the service. 
 
-The resource is the image service, and the 401 response to requests for the resource makes sense. You want to interact with this service? Forbidden! But you can see what you need to do to gain access in the JSON-LD of the service's description document.
+The resource is the image service _description resource_ (DR), and the 401 response to requests for the resource makes sense. You want to interact with this service? Forbidden! But you can see what you need to do to gain access in the JSON-LD of the service's description document.
 
 The client interacts with the info.json through XHR, where it can read the JSON-LD response. 
 
@@ -12,28 +12,59 @@ How can we extend this pattern to work for other resources that are _not_ servic
 
 ## Other resources
 
-Suppose the resource is a video file, or a PDF, or even a JPEG image. These are not services, they are just regular resources. There's nothing for the client to make an XHR request to in the hope of getting a JSON-LD description back. It's just a binary file. There's no probe.
+Suppose the resource is a video file, or a PDF, or even a JPEG image. These are not services, they are just regular _content resources_ (CR). There's nothing for the client to make an XHR request to in the hope of getting a JSON-LD description back. It's just a binary file. There's no probe.
 
 1. We need somewhere to assert the auth services for our resource
 2. we need something for the client to _probe_, to determine the current access to that resource
 
-When the resource is a IIIF Image Service, the info.json does both these jobs, and it feels right that it does these jobs.
+When the resource is a IIIF Image Service, the info.json does both these jobs, and it feels right that it does these jobs. The auth services belong to the image service; they are asserted for it.
 
-The approach taken at Wellcome was (and still is) to assert the auth services directly on the resource in the manifest (meeting requirement 1), and for the client (the UV) to make `HEAD` requests to the resource via XHR, to get a status code (meeting requirement 2). The rest of the auth flow is the same. 
+## Proposal 1
+
+Assert the auth services directly on the resource in the manifest (meeting requirement 1), and for the client (the UV) to make `HEAD` requests to the resource via XHR, to get a status code (meeting requirement 2). The rest of the auth flow is the same. 
+
+In other words - the probe is always the resource for which the authentication services are asserted. For description resources.
 
 Advantages of this approach:
 
 1. It feels semantically correct. The IIIF Auth services are asserted for the resource via a `service` property, just as the auth services for an image service are asserted. We don't have to invent a surrogate resource to attach the auth services to.
 2. The client interacts with the resource directly via HTTP, just as it does for an Image Service.
-3. It makes clear the distinction between _service_ resources, and _direct_ resources (for want of better terminology).
+3. It makes clear the distinction between _service_ resources, and _content_ resources (for want of better terminology).
 
 Disadvantages:
 
-1. The auth services can only live in the manifest, because there's nowhere else to put them. This can bloat the size of the manifest, as the auth services carry the strings for user display. You can do clever things with auth services in `info.json` responses to get the right messages to your users, which you couldn't do in a manifest.
+1. The auth services can only live in the manifest, because there's nowhere else to put them. This can bloat the size of the manifest, as the auth services carry the strings for user display. You can do clever things with auth services in `info.json` responses to get the right messages to your users, which you couldn't do in a manifest without imposing auth on the manifest as well.
 2. It may be difficult to get your logic in the right place to respond to `HEAD` requests for arbitrary resources, especially if they are served by a CDN or a specialist media platform.
 3. The flow is different for image services and binary resources - one is a `GET`, one is a `HEAD`. In practice not a huge difference and not any harder to implement.
 
-## Services description approach
+## Proposal - variation: allow explicit probe service
+
+To address the second disadvantage listed, the probe service can be explicitly provided at a different URL. In this scenario, the client makes a HEAD request to the probe service to determine the user's access, but it's not the content resource URL.
+
+This flow is non-breaking for Auth 1.0 implementations.
+
+* **An Auth 1.x client talking to an Auth 1.0 server** - chooses the path that results in behaviour identical to Auth 1.0
+* **An Auth 1.0 client talking to an Auth 1.x server** - Only understands auth on info.jsons; same behaviour
+
+An Auth 1.x implementation does not have to assert a probe service:
+
+* If the resource is a service description resource (DR: an info.json) the probe for token interaction is the service description, and the client always uses GET (it needs to GET the description anyway).
+* If the resource is a content resource (CR) the client should use it as the probe, with HEAD requests, unless an explicit probe service is provided. 
+* If an explicit probe service (PS) is asserted, it MUST NOT be the CR; and the client should make HEAD requests to the PS.
+
+## Updated auth flow diagram
+
+![IIIF Authentication with probe, client perspective](auth-with-probe.png "IIIF Authentication with probe, client perspective")
+
+This is implemented at https://digirati-co-uk.github.io/iiif-auth-client/?sources=https://iiifauth.digtest.co.uk/index.json (the last few options in the drop down are non-service auth).
+
+---
+
+## Services description approach - "services.json"
+
+_This is NOT the approach I have taken, for now. It felt messy and semantically difficult - what exactly is the resource being protected, what is the service - `services.json` is a service-providing service but is also a probe? Messy..._
+
+_I have left the discussion here for now, for reference._
 
 What if we permit a resource's service description to be declared in a separate resource? A `services.json` information document that a client can process for auth the same way it processes an info.json for an image service? This service description could hold any number of services, but it must have the special function of acting as the **probe** for access control information; it's _not just_ a services container - it also represents the content resource for the purposes of probing for access information. We can see how this works easily enough, but what do we think the `services.json` resource is? What profile does it have? It's not one of the existing auth profiles, because it is not itself an auth service. It's the carrier of services, some of which may be auth services. But it plays a special part in auth, as the means of conveying an HTTP status for the resource it is asserted for. It's a kind of proxy, in a looser way than an Image service info.json information document is for parameterised image requests to the service it describes. If we wanted to attach other services to the PDF or JPEG or video (a palette service, or a frame-extraction service, or even a bitstream API endpoint), would they go in the `services.json`? If we attached a bitstream API to a video resource, shouldn't that work exactly like an image API service does now? What does an image resource with auth look like when it also has a IIIF image service attached?
 
@@ -83,19 +114,7 @@ Question - what does the degraded pattern look like? You're not redirecting to a
 
 The current auth spec is very much designed for auth on services. It has no knowledge of the Presentation API and 
 
-My _client_ demo has no knowledge of the Presentation API either, it only deals with image services.
-
-it needs to come up to Presentation land to demo auth on resources.
-
-## Examples
-
-These are working:
-
-* [Manifest](https://iiifauth.digtest.co.uk/manifest/20_resource_direct)
-* [Resource](https://iiifauth.digtest.co.uk/resources/20_resource_direct.mp4) - 401
-* [services.json](https://iiifauth.digtest.co.uk/service-description/20_resource_direct.mp4/services.json) - 401, but you see the json as normal
-
-These _should_ work if you follow the auth flow as specced, but I don't have a demo client just yet.
+## Examples for "services.json"
 
 The manifest - please excuse horrible mash of Presentation 2 and 3, hacked for demo:
 
