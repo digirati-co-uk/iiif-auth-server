@@ -62,7 +62,7 @@ def get_image_summaries():
     images_as_dicts = [img._asdict() for img in images]
     for img in images_as_dicts:
         img["display"] = img["id"]
-        if img['behaviour'] == 'resource':
+        if img['type'] is not 'ImageService2':
             # this is not a service; it's the resource itself
             policy = AUTH_POLICY[img['id']]
             assert_auth_services(img, policy, img['id'], True)
@@ -79,6 +79,8 @@ def get_dc_type(filename):
     extension = filename.split('.')[-1]
     if extension == "mp4":
         return "Video"
+    if extension == "mp3":
+        return "Audio"
     if extension == "pdf":
         return "Text"
     return "Unknown"
@@ -94,11 +96,11 @@ def get_image_list():
     """Gather the available images with their labels from the policy doc"""
     files = os.listdir(MEDIA_ROOT)
     names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
-    image_nt = namedtuple('Image', ['id', 'label', 'behaviour'])
+    image_nt = namedtuple('Image', ['id', 'label', 'type'])
     images = [image_nt(
         name, 
         AUTH_POLICY[name]['label'], 
-        AUTH_POLICY[name].get('behaviour', 'service')
+        AUTH_POLICY[name].get('type', 'ImageService2')
     ) for name in names]
 
     return images
@@ -258,8 +260,8 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
 
 def authorise_probe_request(identifier):
     """
-        Authorise info.json request based on token
-        This should not be used to authorise requests for content resources
+        Authorise info.json or probe request based on token
+        This should not be used to authorise DIRECT requests for content resources
     """
     policy = AUTH_POLICY[identifier]
     if policy.get('open'):
@@ -701,12 +703,21 @@ def probe(identifier):
     if request.method == 'OPTIONS':
         return preflight()
     
-    message = "Probe service for " + identifier + "<br/>Status: "
-    if authorise_probe_request(identifier):
-        return make_acao_response(message + "200", 200)
-    return make_acao_response(message + "401", 401)
-    
-
+    policy = AUTH_POLICY[identifier]
+    probe_body = {
+        "contentLocation": "%sresources/%s" % (request.url_root, identifier),
+        "label": "Probe service for " + identifier
+    }
+    http_status = 200
+    if not authorise_probe_request(identifier):
+        print('The user is not authed for the resource being probed via this service')
+        degraded_version = policy.get('degraded', None)
+        if degraded_version:
+            probe_body["contentLocation"] = "%sresources/%s" % (request.url_root, degraded_version)
+        else:
+            http_status = 401
+       
+    return make_acao_response(jsonify(probe_body), http_status)
 
 
 if __name__ == '__main__':

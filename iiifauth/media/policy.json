@@ -158,12 +158,12 @@
     },
     "20_av_big_buck_bunny.mp4" : {   
         "label": "Not a service - basic AV test with no auth",    
-        "behaviour": "resource",
+        "type": "Video",
         "open" : true
     },
     "21_av_lego.mp4" : {
         "label": "Not a service - AV test with no explicit probe",    
-        "behaviour": "resource",    
+        "type": "Video",    
         "auth_services" : [
             {
                 "profile": "http://iiif.io/api/auth/1/login",
@@ -178,7 +178,7 @@
     },
     "22_av_stars.mp4" : {
         "label": "Not a service - AV test with separate probe",    
-        "behaviour": "resource",     
+        "type": "Video",    
         "explicit_probe": true,
         "auth_services" : [
             {
@@ -192,9 +192,32 @@
             }
         ]
     },
+    "23_32vs192kbps.mp3" : {
+        "label": "Not a service - AV test for degraded flow",    
+        "type": "Audio",    
+        "explicit_probe": true,
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ],
+        "degraded": "23_32vs192kbps_degraded.mp3"
+    },
+    "23_32vs192kbps_degraded.mp3" : {
+        "label": "degraded version - 32 kbps MP3",
+        "type": "Audio",    
+        "open" : true,
+        "degraded_for": "23_32vs192kbps.mp3"
+    },
     "24_pdf_prezi3.pdf" : {
-        "label": "Resource linked via rendering - a PDF",    
-        "behaviour": "resource",    
+        "label": "Resource linked via rendering - a PDF",   
+        "type": "Text",    
         "auth_services" : [
             {
                 "profile": "http://iiif.io/api/auth/1/login",
