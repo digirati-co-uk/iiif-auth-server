@@ -230,6 +230,11 @@
             }
         ]
     },
+    "25_open_audio_lo_qual.mp3" : {
+        "label": "Low quality standalone audio",
+        "type": "Audio",    
+        "open" : true
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [

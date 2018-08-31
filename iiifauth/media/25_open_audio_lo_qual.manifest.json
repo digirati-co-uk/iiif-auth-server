@@ -1,0 +1,43 @@
+{
+    "@context": [
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Direct audio resource, not a service, no auth" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "This audio file has no auth service" ] }
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/25_open_audio_lo_qual",
+        "type": "Canvas",
+        "label": " - ",
+        "duration": 36.0,
+        "items": [
+          {
+            "id": "https://iiifauth.digtest.co.uk/canvases/25_open_audio_lo_qual/p1",
+            "type": "AnnotationPage",
+            "items": [
+              {
+                "id": "",
+                "type": "Annotation",
+                "motivation": "painting",
+                "body": {
+                  "id": "25_open_audio_lo_qual.mp3",
+                  "type": "Audio",
+                  "format": "audio/mp3",
+                  "duration": 36.0
+                },
+                "target": "https://iiifauth.digtest.co.uk/canvases/25_open_audio_lo_qual"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
