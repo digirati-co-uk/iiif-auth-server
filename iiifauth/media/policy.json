@@ -235,6 +235,29 @@
         "type": "Audio",    
         "open" : true
     },
+    "26_bbb.mp4" : {
+        "label": "Degraded flow test for AV - published resource, video",    
+        "type": "Video",    
+        "explicit_probe": true,
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ],
+        "degraded": "26_bbb_degraded.mp4"
+    },
+    "26_bbb_degraded.mp4" : {
+        "label": "degraded version of above, direct no auth",
+        "type": "Video",    
+        "open" : true,
+        "degraded_for": "26_bbb.mp4"
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [
