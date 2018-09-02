@@ -1,0 +1,46 @@
+{
+  "@context": [
+    "http://iiif.io/api/auth/1/context.json",
+    "http://www.w3.org/ns/anno.jsonld",
+    "http://iiif.io/api/presentation/3/context.json"
+  ],
+  "id": "..",
+  "type": "Manifest",
+  "label": { "en": [ "Video with degraded flow" ] },
+  "metadata": [
+    { 
+      "label": { "en": [ "Note" ] },
+      "value": { "en": [ "This video has an auth service and a degraded version" ] }
+    }
+  ],
+  "items": [
+    {
+      "id": "https://iiifauth.digtest.co.uk/canvases/26_bbb",
+      "type": "Canvas",
+      "label": " - ",
+      "width": 640,
+      "height": 480,
+      "duration": 5.0,
+      "items": [
+        {
+          "id": "https://iiifauth.digtest.co.uk/canvases/26_bbb/p1",
+          "type": "AnnotationPage",
+          "items": [
+            {
+              "id": "",
+              "type": "Annotation",
+              "motivation": "painting",
+              "body": {
+                "id": "26_bbb.mp4",
+                "type": "Video",
+                "format": "video/mp4",
+                "duration": 5.0
+              },
+              "target": "https://iiifauth.digtest.co.uk/canvases/26_bbb"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
