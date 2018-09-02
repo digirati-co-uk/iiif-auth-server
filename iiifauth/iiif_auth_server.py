@@ -694,6 +694,13 @@ def resource_request(identifier):
 
     if authorise_resource_request(identifier):
         return send_file(resolve(identifier))
+    else:
+        policy = AUTH_POLICY[identifier]
+        degraded_version = policy.get('degraded', None)
+        if degraded_version:
+            content_location = "%sresources/%s" % (request.url_root, degraded_version)
+            print('a degraded version is available at', content_location)
+            return redirect(content_location, code=302)
 
     return make_response("Not authorised", 401)
 
