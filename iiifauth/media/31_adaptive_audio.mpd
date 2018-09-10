@@ -16,8 +16,8 @@
           value="1"/>
         <SegmentTemplate
             timescale="1000"
-            media="http://localhost:5000/resources/31_adaptive_audio/fragment-$Number$-$RepresentationID$.m4s"
-            initialization="http://localhost:5000/resources/31_adaptive_audio/init-c1-$RepresentationID$.mp4"
+            media="https://iiifauth.digtest.co.uk/resources/31_adaptive_audio/fragment-$Number$-$RepresentationID$.m4s"
+            initialization="https://iiifauth.digtest.co.uk/resources/31_adaptive_audio/init-c1-$RepresentationID$.mp4"
             duration="2000"
             startNumber="1">
         </SegmentTemplate>

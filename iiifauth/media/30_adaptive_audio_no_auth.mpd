@@ -16,8 +16,8 @@
           value="1"/>
         <SegmentTemplate
             timescale="1000"
-            media="http://localhost:5000/resources/30_adaptive_audio_no_auth/fragment-$Number$-$RepresentationID$.m4s"
-            initialization="http://localhost:5000/resources/30_adaptive_audio_no_auth/init-c1-$RepresentationID$.mp4"
+            media="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/fragment-$Number$-$RepresentationID$.m4s"
+            initialization="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/init-c1-$RepresentationID$.mp4"
             duration="2000"
             startNumber="1">
         </SegmentTemplate>
@@ -40,8 +40,8 @@
           value="1"/>
         <SegmentTemplate
             timescale="1000"
-            media="http://localhost:5000/resources/30_adaptive_audio_no_auth/fragment-$Number$-i5-$RepresentationID$.m4s"
-            initialization="http://localhost:5000/resources/30_adaptive_audio_no_auth/init-c2-$RepresentationID$.mp4"
+            media="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/fragment-$Number$-i5-$RepresentationID$.m4s"
+            initialization="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/init-c2-$RepresentationID$.mp4"
             duration="2000"
             startNumber="1">
         </SegmentTemplate>
@@ -64,8 +64,8 @@
           value="1"/>
         <SegmentTemplate
             timescale="1000"
-            media="http://localhost:5000/resources/30_adaptive_audio_no_auth/fragment-$Number$-i10-$RepresentationID$.m4s"
-            initialization="http://localhost:5000/resources/30_adaptive_audio_no_auth/init-c3-$RepresentationID$.mp4"
+            media="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/fragment-$Number$-i10-$RepresentationID$.m4s"
+            initialization="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/init-c3-$RepresentationID$.mp4"
             duration="2000"
             startNumber="1">
         </SegmentTemplate>
@@ -88,8 +88,8 @@
           value="1"/>
         <SegmentTemplate
             timescale="1000"
-            media="http://localhost:5000/resources/30_adaptive_audio_no_auth/fragment-$Number$-i15-$RepresentationID$.m4s"
-            initialization="http://localhost:5000/resources/30_adaptive_audio_no_auth/init-c4-$RepresentationID$.mp4"
+            media="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/fragment-$Number$-i15-$RepresentationID$.m4s"
+            initialization="https://iiifauth.digtest.co.uk/resources/30_adaptive_audio_no_auth/init-c4-$RepresentationID$.mp4"
             duration="2000"
             startNumber="1">
         </SegmentTemplate>
