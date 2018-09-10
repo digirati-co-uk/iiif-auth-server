@@ -72,6 +72,8 @@ def get_image_summaries():
         else:
             img['id'] = url_for('image_id', identifier=img['id'], _external=True)
         img['label'] = img['label'].replace('{server}', url_for('index', _external=True))
+        if img.get("format", None) is None:
+            del img["format"]
     return images_as_dicts
 
 
@@ -79,7 +81,7 @@ def get_dc_type(filename):
     extension = filename.split('.')[-1]
     if extension == "mp4":
         return "Video"
-    if extension == "mp3":
+    if extension == "mp3" or extension == "mpd":
         return "Audio"
     if extension == "pdf":
         return "Text"
@@ -94,17 +96,23 @@ def index_json():
 
 def get_image_list():
     """Gather the available images with their labels from the policy doc"""
-    files = os.listdir(MEDIA_ROOT)
+    files = list_files(MEDIA_ROOT)
     names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
-    image_nt = namedtuple('Image', ['id', 'label', 'type'])
+    image_nt = namedtuple('Image', ['id', 'label', 'type', 'format'])
     images = [image_nt(
         name, 
         AUTH_POLICY[name]['label'], 
-        AUTH_POLICY[name].get('type', 'ImageService2')
+        AUTH_POLICY[name].get('type', 'ImageService2'),
+        AUTH_POLICY[name].get('format', None)
     ) for name in names]
 
     return images
 
+
+def list_files(path):
+    for file in os.listdir(path):
+        if os.path.isfile(os.path.join(path, file)):
+            yield file
 
 def make_manifest(identifier):
     """
@@ -174,10 +182,24 @@ def manifest(identifier):
     return make_acao_response(jsonify(new_manifest), 200, True)
 
 
-def make_acao_response(response_object, status=None, cache=None):
+def make_acao_response(response_object, status=None, cache=None, echo=False):
     """We're handling CORS directly for clarity"""
     resp = make_response(response_object, status)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
+    origin = '*'
+    # temporary horrible hack, need to work out why 
+    # request.environ['HTTP_ORIGIN'] is empty
+    # normally you should never do this. But for ABR, we know enough to permit it
+    if echo:
+        origin =  request.environ.get("HTTP_ORIGIN", None)
+        if origin is None:
+            if "iiifauth.digtest.co.uk" in request.url_root:
+                origin = "https://digirati-co-uk.github.io"
+            else:
+                origin = "http://localhost:8000"
+
+    resp.headers['Access-Control-Allow-Origin'] = origin
+    # only for MPEG-DASH:
+    resp.headers['Access-Control-Allow-Credentials'] = "true"
     if cache is None:
         resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     else:
@@ -692,10 +714,13 @@ def resource_request(identifier):
             return make_acao_response('', 200)
         return make_acao_response('', 401)
 
+    policy = AUTH_POLICY[identifier]
     if authorise_resource_request(identifier):
-        return send_file(resolve(identifier))
+        resp = send_file(resolve(identifier))
+        if policy.get("format", None) == "application/dash+xml":
+            resp = make_acao_response(resp, echo=True) # for dash.js
+        return resp
     else:
-        policy = AUTH_POLICY[identifier]
         degraded_version = policy.get('degraded', None)
         if degraded_version:
             content_location = "%sresources/%s" % (request.url_root, degraded_version)
@@ -703,6 +728,23 @@ def resource_request(identifier):
             return redirect(content_location, code=302)
 
     return make_response("Not authorised", 401)
+
+
+
+@app.route('/resources/<manifest_identifier>/<fragment>', methods=['GET'])
+def resource_request_fragment(manifest_identifier, fragment):
+    id_parts = manifest_identifier.split(".token.")
+    if len(id_parts) == 1:
+        id_parts.append(None)
+    identifier, token = tuple(id_parts)
+    reconstructed_path = os.path.join(manifest_identifier, fragment)
+    # TODO
+    # if not access controlled, just serve the fragment:
+    return make_acao_response(send_file(resolve(reconstructed_path)))
+    # If token is not None, authorise on that. It should be a hash of the user's sesison token
+    # (for demo purposes!)
+    # Otherwise, look for cookies and use them.
+
 
 
 @app.route('/probe/<identifier>', methods=['GET', 'OPTIONS', 'HEAD'])

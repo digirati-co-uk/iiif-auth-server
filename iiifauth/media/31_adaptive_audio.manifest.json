@@ -1,0 +1,44 @@
+{
+    "@context": [
+      "http://iiif.io/api/auth/1/context.json",
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Adaptive bit rate Audio, degraded flow" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "This audio has parts missing in the degraded version but not in the full version" ] }
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/31_adaptive_audio",
+        "type": "Canvas",
+        "label": " - ",
+        "duration": 40.0,
+        "items": [
+          {
+            "id": "https://iiifauth.digtest.co.uk/canvases/31_adaptive_audio/p1",
+            "type": "AnnotationPage",
+            "items": [
+              {
+                "id": "",
+                "type": "Annotation",
+                "motivation": "painting",
+                "body": {
+                  "id": "31_adaptive_audio.mpd",
+                  "type": "Audio",
+                  "format": "application/dash+xml",
+                  "duration": 40.0
+                },
+                "target": "https://iiifauth.digtest.co.uk/canvases/31_adaptive_audio"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
