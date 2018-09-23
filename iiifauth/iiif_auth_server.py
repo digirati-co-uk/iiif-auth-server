@@ -182,22 +182,10 @@ def manifest(identifier):
     return make_acao_response(jsonify(new_manifest), 200, True)
 
 
-def make_acao_response(response_object, status=None, cache=None, echo=False):
+def make_acao_response(response_object, status=None, cache=None, origin=None):
     """We're handling CORS directly for clarity"""
     resp = make_response(response_object, status)
-    origin = '*'
-    # temporary horrible hack, need to work out why 
-    # request.environ['HTTP_ORIGIN'] is empty
-    # normally you should never do this. But for ABR, we know enough to permit it
-    if echo:
-        origin =  request.environ.get("HTTP_ORIGIN", None)
-        if origin is None:
-            if "iiifauth.digtest.co.uk" in request.url_root:
-                origin = "https://digirati-co-uk.github.io"
-            else:
-                origin = "http://localhost:8000"
-
-    resp.headers['Access-Control-Allow-Origin'] = origin
+    resp.headers['Access-Control-Allow-Origin'] = origin or '*'
     # only for MPEG-DASH:
     resp.headers['Access-Control-Allow-Credentials'] = "true"
     if cache is None:
@@ -354,7 +342,6 @@ def image_id(identifier):
     """Redirect a plain image id"""
     resp = redirect(url_for('image_info', identifier=identifier), code=303)
     return make_acao_response(resp)
-
 
 
 
@@ -717,9 +704,26 @@ def resource_request(identifier):
     policy = AUTH_POLICY[identifier]
     if authorise_resource_request(identifier):
         resp = send_file(resolve(identifier))
+        required_session_origin = None
         if policy.get("format", None) == "application/dash+xml":
-            resp = make_acao_response(resp, echo=True) # for dash.js
-        return resp
+            session_id = get_session_id()
+            db_token = None
+            if session_id:
+                db_token = query_db('select * from tokens where session_id=?', [session_id], one=True)
+            if db_token:
+                print("found token %s" % db_token['token'])
+                required_session_origin = db_token['origin']
+                # Here we are saying it's OK to echo back the origin we acquired during
+                # the auth flow, from the client.
+                # This ony happens here, not generally;
+                # It happens because this server needs to support adaptive bit rate formats
+                # The server could validate the origin, from the request (although not tamper-proof)
+                # Or by other means, including whitelists
+                # THIS IS ONLY FOR non-simple content requests, and lies outside the auth spec.
+                #
+                # See https://github.com/IIIF/api/issues/1290#issuecomment-417924635
+                #
+        return make_acao_response(resp, origin=required_session_origin) # for dash.js
     else:
         degraded_version = policy.get('degraded', None)
         if degraded_version:
