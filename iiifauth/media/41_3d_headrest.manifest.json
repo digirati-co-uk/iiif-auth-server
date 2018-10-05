@@ -1,0 +1,34 @@
+{
+    "@context": [
+      "http://iiif.io/api/auth/1/context.json",
+      "http://www.w3.org/ns/anno.jsonld",
+      "http://iiif.io/api/presentation/3/context.json"
+    ],
+    "id": "..",
+    "type": "Manifest",
+    "label": { "en": [ "Direct resource, not a service; 3D 0bject as rendering (i.e. not an anno)" ] },
+    "metadata": [
+      { 
+        "label": { "en": [ "Note" ] },
+        "value": { "en": [ "The auth service is declared directly on a resource. The resource in question here is NOT linked via annotation, but via rendering. property of Prezi3 spec." ] }
+      }
+    ],
+    "rendering": [
+      {
+        "id": "41_3d_headrest.gltf",
+        "type": "PhysicalObject",
+        "format": "model/gltf+json",
+        "label": "A 3D Model of a headrest"
+      }
+    ],
+    "items": [
+      {
+        "id": "https://iiifauth.digtest.co.uk/canvases/41_3d_headrest",
+        "type": "Canvas",
+        "label": " - ",
+        "width": 5000,
+        "height": 5000,
+        "items": []
+      }
+    ]
+  }
