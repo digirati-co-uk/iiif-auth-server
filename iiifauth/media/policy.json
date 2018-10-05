@@ -289,6 +289,22 @@
         "degraded_for": "31_adaptive_audio.mpd",
         "format": "application/dash+xml"
     },
+    "41_3d_headrest.gltf" : {
+        "label": "Resource linked via rendering - a 3D model",   
+        "type": "PhysicalObject",    
+        "format": "model/gltf+json",
+        "auth_services" : [
+            {
+                "profile": "http://iiif.io/api/auth/1/login",
+                "label": "Login to Example Institution",
+                "header": "Please Log In",
+                "description": "Example Institution requires that you log in with your example account to view this content.",
+                "confirmLabel": "Login",
+                "failureHeader": "Authentication Failed",
+                "failureDescription": "<a href=\"http://example.org/policy\">Access Policy</a>"
+            }
+        ]
+    },
     "manifest_01_beer_01.jpg" : {
         "shared" : true,        
         "auth_services" : [

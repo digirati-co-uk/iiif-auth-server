@@ -85,6 +85,8 @@ def get_dc_type(filename):
         return "Audio"
     if extension == "pdf":
         return "Text"
+    if extension == "gltf":
+        return "PhysicalObject"
     return "Unknown"
 
 
