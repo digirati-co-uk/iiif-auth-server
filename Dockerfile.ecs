@@ -1,0 +1,21 @@
+FROM ubuntu
+
+RUN apt-get update -y \
+	&& apt-get install -y python-pip python-dev build-essential uwsgi libjpeg-dev \
+	&& rm -rf /var/lib/apt/lists/*
+COPY requirements.txt /opt/iiif/requirements.txt
+RUN pip install -r /opt/iiif/requirements.txt
+
+WORKDIR /opt/iiif
+EXPOSE 80
+
+COPY iiifauth /opt/iiif/iiifauth
+
+COPY iiifauth.ini /opt/iiif/
+COPY wsgi.py /opt/iiif/
+COPY database.py /opt/iiif/
+
+RUN cd /opt/iiif && export FLASK_APP='iiifauth' && python database.py
+
+CMD ["uwsgi", "--http", "0.0.0.0:80", "--master", "--module", "wsgi", "--processes", "1"]
+
