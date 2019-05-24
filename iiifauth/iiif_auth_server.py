@@ -728,7 +728,7 @@ def resource_request(identifier):
             else:
                 # BUT... the client might be making a credentialled request for
                 # something that is not authed?
-                required_session_origin = request.headers.get('origin', None)
+                required_session_origin = request.headers.get('Origin', None)
         return make_acao_response(resp, origin=required_session_origin) # for dash.js
     else:
         degraded_version = policy.get('degraded', None)
