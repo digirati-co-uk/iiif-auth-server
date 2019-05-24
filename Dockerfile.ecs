@@ -1,8 +1,14 @@
-FROM ubuntu
+FROM alpine:3.6
 
-RUN apt-get update -y \
-	&& apt-get install -y python-pip python-dev build-essential uwsgi libjpeg-dev \
-	&& rm -rf /var/lib/apt/lists/*
+RUN apk add --update --no-cache --virtual=run-deps \
+  python3-dev \
+	build-base \
+	jpeg-dev \
+  uwsgi \
+  uwsgi-http \
+  uwsgi-python3 \
+  ca-certificates
+
 COPY requirements.txt /opt/iiif/requirements.txt
 RUN pip install -r /opt/iiif/requirements.txt
 
@@ -15,7 +21,6 @@ COPY iiifauth.ini /opt/iiif/
 COPY wsgi.py /opt/iiif/
 COPY database.py /opt/iiif/
 
-RUN cd /opt/iiif && export FLASK_APP='iiifauth' && python database.py
+RUN cd /opt/iiif && export FLASK_APP='iiifauth' && python3 database.py
 
-CMD ["uwsgi", "--http", "0.0.0.0:80", "--master", "--module", "wsgi", "--processes", "1"]
-
+CMD [ "uwsgi", "--plugins", "http,python3", "--http", "0.0.0.0:80", "--master", "--module", "wsgi", "--processes", "1" ]
