@@ -10,7 +10,7 @@ RUN apk add --update --no-cache --virtual=run-deps \
   ca-certificates
 
 COPY requirements.txt /opt/iiif/requirements.txt
-RUN pip install -r /opt/iiif/requirements.txt
+RUN pip3 install -r /opt/iiif/requirements.txt
 
 WORKDIR /opt/iiif
 EXPOSE 80
