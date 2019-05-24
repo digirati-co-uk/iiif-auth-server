@@ -725,6 +725,10 @@ def resource_request(identifier):
                 #
                 # See https://github.com/IIIF/api/issues/1290#issuecomment-417924635
                 #
+            else:
+                # BUT... the client might be making a credentialled request for
+                # something that is not authed?
+                required_session_origin = request.headers.get('origin', None)
         return make_acao_response(resp, origin=required_session_origin) # for dash.js
     else:
         degraded_version = policy.get('degraded', None)
