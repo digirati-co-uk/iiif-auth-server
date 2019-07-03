@@ -17,5 +17,5 @@ COPY database.py /opt/iiif/
 
 RUN cd /opt/iiif && export FLASK_APP='iiifauth' && python database.py
 
-CMD ["uwsgi", "--http", "0.0.0.0:80", "--master", "--module", "wsgi", "--processes", "1"]
+CMD ["uwsgi", "--http", "0.0.0.0:80", "--master", "--module", "wsgi", "--processes", "1", "--wsgi-disable-file-wrapper", "true"]
 
