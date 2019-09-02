@@ -62,7 +62,7 @@ def get_image_summaries():
     images_as_dicts = [img._asdict() for img in images]
     for img in images_as_dicts:
         img["display"] = img["id"]
-        if img['behaviour'] == 'resource':
+        if img['type'] is not 'ImageService2':
             # this is not a service; it's the resource itself
             policy = AUTH_POLICY[img['id']]
             assert_auth_services(img, policy, img['id'], True)
@@ -72,6 +72,8 @@ def get_image_summaries():
         else:
             img['id'] = url_for('image_id', identifier=img['id'], _external=True)
         img['label'] = img['label'].replace('{server}', url_for('index', _external=True))
+        if img.get("format", None) is None:
+            del img["format"]
     return images_as_dicts
 
 
@@ -79,8 +81,12 @@ def get_dc_type(filename):
     extension = filename.split('.')[-1]
     if extension == "mp4":
         return "Video"
+    if extension == "mp3" or extension == "mpd":
+        return "Audio"
     if extension == "pdf":
         return "Text"
+    if extension == "gltf":
+        return "PhysicalObject"
     return "Unknown"
 
 
@@ -92,17 +98,23 @@ def index_json():
 
 def get_image_list():
     """Gather the available images with their labels from the policy doc"""
-    files = os.listdir(MEDIA_ROOT)
+    files = list_files(MEDIA_ROOT)
     names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
-    image_nt = namedtuple('Image', ['id', 'label', 'behaviour'])
+    image_nt = namedtuple('Image', ['id', 'label', 'type', 'format'])
     images = [image_nt(
         name, 
         AUTH_POLICY[name]['label'], 
-        AUTH_POLICY[name].get('behaviour', 'service')
+        AUTH_POLICY[name].get('type', 'ImageService2'),
+        AUTH_POLICY[name].get('format', None)
     ) for name in names]
 
     return images
 
+
+def list_files(path):
+    for file in os.listdir(path):
+        if os.path.isfile(os.path.join(path, file)):
+            yield file
 
 def make_manifest(identifier):
     """
@@ -172,10 +184,12 @@ def manifest(identifier):
     return make_acao_response(jsonify(new_manifest), 200, True)
 
 
-def make_acao_response(response_object, status=None, cache=None):
+def make_acao_response(response_object, status=None, cache=None, origin=None):
     """We're handling CORS directly for clarity"""
     resp = make_response(response_object, status)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Origin'] = origin or '*'
+    # only for MPEG-DASH:
+    resp.headers['Access-Control-Allow-Credentials'] = "true"
     if cache is None:
         resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     else:
@@ -258,8 +272,8 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
 
 def authorise_probe_request(identifier):
     """
-        Authorise info.json request based on token
-        This should not be used to authorise requests for content resources
+        Authorise info.json or probe request based on token
+        This should not be used to authorise DIRECT requests for content resources
     """
     policy = AUTH_POLICY[identifier]
     if policy.get('open'):
@@ -330,7 +344,6 @@ def image_id(identifier):
     """Redirect a plain image id"""
     resp = redirect(url_for('image_info', identifier=identifier), code=303)
     return make_acao_response(resp)
-
 
 
 
@@ -690,10 +703,58 @@ def resource_request(identifier):
             return make_acao_response('', 200)
         return make_acao_response('', 401)
 
+    policy = AUTH_POLICY[identifier]
     if authorise_resource_request(identifier):
-        return send_file(resolve(identifier))
+        resp = send_file(resolve(identifier))
+        required_session_origin = None
+        if policy.get("format", None) == "application/dash+xml":
+            session_id = get_session_id()
+            db_token = None
+            if session_id:
+                db_token = query_db('select * from tokens where session_id=?', [session_id], one=True)
+            if db_token:
+                print("found token %s" % db_token['token'])
+                required_session_origin = db_token['origin']
+                # Here we are saying it's OK to echo back the origin we acquired during
+                # the auth flow, from the client.
+                # This ony happens here, not generally;
+                # It happens because this server needs to support adaptive bit rate formats
+                # The server could validate the origin, from the request (although not tamper-proof)
+                # Or by other means, including whitelists
+                # THIS IS ONLY FOR non-simple content requests, and lies outside the auth spec.
+                #
+                # See https://github.com/IIIF/api/issues/1290#issuecomment-417924635
+                #
+            else:
+                # BUT... the client might be making a credentialled request for
+                # something that is not authed?
+                required_session_origin = request.headers.get('Origin', None)
+        return make_acao_response(resp, origin=required_session_origin) # for dash.js
+    else:
+        degraded_version = policy.get('degraded', None)
+        if degraded_version:
+            content_location = "%sresources/%s" % (request.url_root, degraded_version)
+            print('a degraded version is available at', content_location)
+            return redirect(content_location, code=302)
 
     return make_response("Not authorised", 401)
+
+
+
+@app.route('/resources/<manifest_identifier>/<fragment>', methods=['GET'])
+def resource_request_fragment(manifest_identifier, fragment):
+    id_parts = manifest_identifier.split(".token.")
+    if len(id_parts) == 1:
+        id_parts.append(None)
+    identifier, token = tuple(id_parts)
+    reconstructed_path = os.path.join(manifest_identifier, fragment)
+    # TODO
+    # if not access controlled, just serve the fragment:
+    return make_acao_response(send_file(resolve(reconstructed_path)))
+    # If token is not None, authorise on that. It should be a hash of the user's sesison token
+    # (for demo purposes!)
+    # Otherwise, look for cookies and use them.
+
 
 
 @app.route('/probe/<identifier>', methods=['GET', 'OPTIONS', 'HEAD'])
@@ -701,12 +762,21 @@ def probe(identifier):
     if request.method == 'OPTIONS':
         return preflight()
     
-    message = "Probe service for " + identifier + "<br/>Status: "
-    if authorise_probe_request(identifier):
-        return make_acao_response(message + "200", 200)
-    return make_acao_response(message + "401", 401)
-    
-
+    policy = AUTH_POLICY[identifier]
+    probe_body = {
+        "contentLocation": "%sresources/%s" % (request.url_root, identifier),
+        "label": "Probe service for " + identifier
+    }
+    http_status = 200
+    if not authorise_probe_request(identifier):
+        print('The user is not authed for the resource being probed via this service')
+        degraded_version = policy.get('degraded', None)
+        if degraded_version:
+            probe_body["contentLocation"] = "%sresources/%s" % (request.url_root, degraded_version)
+        else:
+            http_status = 401
+       
+    return make_acao_response(jsonify(probe_body), http_status)
 
 
 if __name__ == '__main__':
