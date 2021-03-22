@@ -18,28 +18,26 @@ from flask import (
 )
 from iiif2 import iiif, web
 
-
-
 app = Flask(__name__)
 app.permanent_session_lifetime = timedelta(minutes=10)
 app.secret_key = 'Set a sensible secret key here'
 app.database = os.path.join(app.root_path, 'iiifauth.db')
-app.config.update(dict(    
-    SERVER_NAME=os.environ.get('IIIFAUTH_SERVER_NAME', None) 
+app.config.update(dict(
+    SERVER_NAME=os.environ.get('IIIFAUTH_SERVER_NAME', None),
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True
 ))
 
 # some globals
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
 MEDIA_ROOT = os.path.join(APP_PATH, 'media')
-AUTH_POLICY = None
-with open(os.path.join(MEDIA_ROOT, 'policy.json')) as policy_data:
-    AUTH_POLICY = json.load(policy_data)
-
+with open(os.path.join(MEDIA_ROOT, 'media_auth_config.json')) as auth_config_file:
+    MEDIA_AUTH_CONFIG = json.load(auth_config_file)
 
 
 @app.before_request
 def func():
-    """Make our sessions last longer than browser window"""
+    """Make our Flask sessions last longer than the browser window lifetime"""
     session.permanent = True
     session.modified = True
 
@@ -51,30 +49,29 @@ def resolve(identifier):
 
 @app.route('/')
 def index():
-    """List all the info.jsons we have"""
+    """List all the authed resources we have, and where available, manifests that refer to them"""
     files = os.listdir(MEDIA_ROOT)
     manifests = sorted(''.join(f.split('.')[:-2]) for f in files if f.endswith('manifest.json'))
-    return render_template('index.html', images=get_image_summaries(), manifests=manifests)
+    return render_template('index.html', images=get_media_summaries(), manifests=manifests)
 
 
-def get_image_summaries():
-    images = get_image_list()
-    images_as_dicts = [img._asdict() for img in images]
-    for img in images_as_dicts:
-        img["display"] = img["id"]
-        if img['type'] is not 'ImageService2':
+def get_media_summaries():
+    media_as_dicts = [media._asdict() for media in get_media_list()]
+    for media in media_as_dicts:
+        media_id = media['id']
+        media["display"] = media_id
+        if media['type'] != 'ImageService2':
             # this is not a service; it's the resource itself
-            policy = AUTH_POLICY[img['id']]
-            assert_auth_services(img, policy, img['id'], True)
-            img['partOf'] = url_for('manifest', identifier=img["id"][:-4], _external=True)
-            img['type'] = get_dc_type(img["id"])
-            img['id'] = url_for('resource_request', identifier=img['id'], _external=True)
+            assert_auth_services(media, media_id, True)
+            media['partOf'] = url_for('manifest', identifier=media_id[:-4], _external=True)
+            media['type'] = get_dc_type(media_id)
+            media['id'] = url_for('resource_request', identifier=media_id, _external=True)
         else:
-            img['id'] = url_for('image_id', identifier=img['id'], _external=True)
-        img['label'] = img['label'].replace('{server}', url_for('index', _external=True))
-        if img.get("format", None) is None:
-            del img["format"]
-    return images_as_dicts
+            media['id'] = url_for('image_id', identifier=media_id, _external=True)
+        media['label'] = media['label'].replace('{server}', url_for('index', _external=True))
+        if media.get("format", None) is None:
+            del media["format"]
+    return media_as_dicts
 
 
 def get_dc_type(filename):
@@ -92,29 +89,30 @@ def get_dc_type(filename):
 
 @app.route('/index.json')
 def index_json():
-    """JSON version of image list"""
-    return make_acao_response(jsonify(get_image_summaries()), 200, True)
+    """JSON version of media list"""
+    return make_acao_response(jsonify(get_media_summaries()), 200, True)
 
 
-def get_image_list():
-    """Gather the available images with their labels from the policy doc"""
+def get_media_list():
+    """Gather the available media (i.e., content resources) with their labels from the auth config doc"""
     files = list_files(MEDIA_ROOT)
-    names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
-    image_nt = namedtuple('Image', ['id', 'label', 'type', 'format'])
-    images = [image_nt(
-        name, 
-        AUTH_POLICY[name]['label'], 
-        AUTH_POLICY[name].get('type', 'ImageService2'),
-        AUTH_POLICY[name].get('format', None)
-    ) for name in names]
+    media_names = sorted(f for f in files if not f.endswith('json') and not f.startswith('manifest'))
+    media_nt = namedtuple('Image', ['id', 'label', 'type', 'format'])
+    media = [media_nt(
+        media_name,
+        MEDIA_AUTH_CONFIG[media_name]['label'],
+        MEDIA_AUTH_CONFIG[media_name].get('type', 'ImageService2'),
+        MEDIA_AUTH_CONFIG[media_name].get('format', None)
+    ) for media_name in media_names]
 
-    return images
+    return media
 
 
 def list_files(path):
     for file in os.listdir(path):
         if os.path.isfile(os.path.join(path, file)):
             yield file
+
 
 def make_manifest(identifier):
     """
@@ -123,27 +121,25 @@ def make_manifest(identifier):
         as described in the policy.json document.
         To demo non-service auth, use a different file extension.
     """
-    new_manifest = None
-    with open(os.path.join(MEDIA_ROOT, '%s.manifest.json' % identifier)) as source_manifest:
+    with open(os.path.join(MEDIA_ROOT, f"{identifier}.manifest.json")) as source_manifest:
         new_manifest = json.load(source_manifest)
-        manifest_id = "%smanifest/%s" % (request.url_root, identifier)
-        
+        manifest_id = f"{request.url_root}manifest/{identifier}"
+
         canvases = new_manifest.get("items", None)
         if canvases is not None:
             new_manifest['id'] = manifest_id
         else:
             new_manifest['@id'] = manifest_id
             new_manifest['sequences'][0]['@id'] = (
-                "%smanifest/%s/sequence" % (request.url_root, identifier))
+                f"{request.url_root}manifest/{identifier}/sequence")
             canvases = new_manifest['sequences'][0]['canvases']
-        
+
         rendering = new_manifest.get("rendering", [])
         if len(rendering) > 0:
             # just put the auth services on the rendering for demo
             resource_identifier = rendering[0]['id']
-            policy = AUTH_POLICY[resource_identifier]
-            assert_auth_services(rendering[0], policy, resource_identifier, True)
-            rendering[0]['id'] = "%sresources/%s" % (request.url_root, resource_identifier)
+            assert_auth_services(rendering[0], resource_identifier, True)
+            rendering[0]['id'] = f"{request.url_root}resources/{resource_identifier}"
         else:
             for canvas in canvases:
                 # Currently this demo uses a P2 manifest for image services
@@ -155,13 +151,13 @@ def make_manifest(identifier):
                     image = canvas['images'][0]['resource']
                     image_identifier = image['@id']
                     if not image_identifier.startswith("http"):
-                        canvas['images'][0]['@id'] = "%simage-annos/%s" % (request.url_root, image_identifier)
+                        canvas['images'][0]['@id'] = f"{request.url_root}image-annos/{image_identifier}"
                         image['service'] = {
-                            "@context" : iiifauth.terms.CONTEXT_IMAGE,
-                            "@id" : "%simg/%s" % (request.url_root, image_identifier),
-                            "profile" : iiifauth.terms.PROFILE_IMAGE
+                            "@context": iiifauth.terms.CONTEXT_IMAGE,
+                            "@id": f"{request.url_root}img/{image_identifier}",
+                            "profile": iiifauth.terms.PROFILE_IMAGE
                         }
-                        image['@id'] = "%s/full/full/0/default.jpg" % image['service']['@id']
+                        image['@id'] = f"{image['service']['@id']}/full/full/0/default.jpg"
                 # In order to demo non-service auth we have to add a strange hybrid of prezi3
                 items = canvas.get('items', [])
                 if len(items) > 0:
@@ -170,11 +166,10 @@ def make_manifest(identifier):
                     resource = anno['body']
                     resource_identifier = resource['id']
                     if not resource_identifier.startswith("http"):
-                        anno['id'] = "%sresource-annos/%s" % (request.url_root, resource_identifier)
-                        policy = AUTH_POLICY[resource_identifier]
-                        assert_auth_services(resource, policy, resource_identifier, True)
-                        resource['id'] = "%sresources/%s" % (request.url_root, resource_identifier)
-        
+                        anno['id'] = f"{request.url_root}resource-annos/{resource_identifier}"
+                        assert_auth_services(resource, resource_identifier, True)
+                        resource['id'] = f"{request.url_root}resources/{resource_identifier}"
+
     return new_manifest
 
 
@@ -205,7 +200,6 @@ def preflight():
     return resp
 
 
-
 def get_pattern_name(service):
     """
         Get a friendly pattern name / slug from the auth service profile
@@ -213,33 +207,34 @@ def get_pattern_name(service):
     return service['profile'].split('/')[-1]
 
 
-def assert_auth_services(info, policy, identifier, prezi3=False):
+def assert_auth_services(info, identifier, prezi3=False):
     """
         Augment the info.json, or other resource, with auth service(s) from our
         'database' of auth policy
     """
-    original_policy = policy
-    degraded_for = policy.get('degraded_for', None)
+    original_config = MEDIA_AUTH_CONFIG[identifier]
+    config = original_config
+    degraded_for = original_config.get('degraded_for', None)
     if degraded_for:
         identifier = degraded_for
-        policy = AUTH_POLICY[degraded_for]
+        config = MEDIA_AUTH_CONFIG[degraded_for]
 
-    services = policy.get('auth_services', [])
+    services = config.get('auth_services', [])
 
     for service in services:
         if not prezi3:
             service['@context'] = iiifauth.terms.CONTEXT_AUTH
         pattern = get_pattern_name(service)
-        identifier_slug = 'shared' if policy.get('shared', False) else identifier
-        service['@id'] = "%sauth/cookie/%s/%s" % (request.url_root, pattern, identifier_slug)
+        identifier_slug = 'shared' if config.get('shared', False) else identifier
+        service['@id'] = f"{request.url_root}auth/cookie/{pattern}/{identifier_slug}"
         service['service'] = [
             {
-                "@id" : "%sauth/token/%s/%s" % (request.url_root, pattern, identifier_slug),
-                "profile" : iiifauth.terms.PROFILE_TOKEN
+                "@id": f"{request.url_root}auth/token/{pattern}/{identifier_slug}",
+                "profile": iiifauth.terms.PROFILE_TOKEN
             },
             {
-                "@id" : "%sauth/logout/%s/%s" % (request.url_root, pattern, identifier_slug),
-                "profile" : iiifauth.terms.PROFILE_LOGOUT,
+                "@id": f"{request.url_root}auth/logout/{pattern}/{identifier_slug}",
+                "profile": iiifauth.terms.PROFILE_LOGOUT,
                 "label": "log out"
             }
         ]
@@ -249,13 +244,12 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
             service['service'][0]['@type'] = "AuthTokenService1"
             service['service'][1]['@type'] = "AuthLogoutService1"
 
-        if policy.get("explicit_probe", False):
+        if config.get("explicit_probe", False):
             service['service'].append({
-                "@id": "%sprobe/%s" % (request.url_root, identifier),
+                "@id": f"{request.url_root}probe/{identifier}",
                 "@type": "AuthProbeService1",
-                "profile" : iiifauth.terms.PROFILE_PROBE, 
+                "profile": iiifauth.terms.PROFILE_PROBE,
             })
-
 
     if len(services) > 0:
         if prezi3 or len(services) > 1:
@@ -263,7 +257,7 @@ def assert_auth_services(info, policy, identifier, prezi3=False):
         else:
             info['service'] = services[0]
 
-    max_width = original_policy.get('maxWidth', None)
+    max_width = original_config.get('maxWidth', None)
     if max_width is not None:
         info['profile'].append({
             "maxWidth": max_width
@@ -275,21 +269,20 @@ def authorise_probe_request(identifier):
         Authorise info.json or probe request based on token
         This should not be used to authorise DIRECT requests for content resources
     """
-    policy = AUTH_POLICY[identifier]
+    policy = MEDIA_AUTH_CONFIG[identifier]
     if policy.get('open'):
-        print('%s is open, no auth required' % identifier)
+        print(f'{identifier} is open, no auth required')
         return True
 
     service_id = None
     match = re.search('Bearer (.*)', request.headers.get('Authorization', ''))
     if match:
         token = match.group(1)
-        print('token %s found' % token)
-        db_token = query_db('select * from tokens where token=?',
-                            [token], one=True)
+        print(f'token {token} found')
+        db_token = query_db('select * from tokens where token=?', [token], one=True)
         if db_token:
             service_id = db_token['service_id']
-            print('service_id %s found' % service_id)
+            print(f'service_id {service_id} found')
     else:
         print('no Authorization header found')
 
@@ -310,16 +303,18 @@ def authorise_probe_request(identifier):
     print('info request is NOT authorised')
     return False
 
+
 def get_session_id():
     """Helper for session_id"""
     return session.get('session_id', None)
+
 
 def authorise_resource_request(identifier):
     """
         Authorise image API requests based on Cookie (or possibly other mechanisms)
         This method should not accept a token as evidence of identity
     """
-    policy = AUTH_POLICY[identifier]
+    policy = MEDIA_AUTH_CONFIG[identifier]
     if policy.get('open'):
         return True
 
@@ -346,7 +341,6 @@ def image_id(identifier):
     return make_acao_response(resp)
 
 
-
 @app.route('/img/<identifier>/info.json', methods=['GET', 'OPTIONS', 'HEAD'])
 def image_info(identifier):
     """
@@ -361,23 +355,21 @@ def image_info(identifier):
         return preflight()
 
     print('info.json request for', identifier)
-    policy = AUTH_POLICY[identifier]
-    uri = "%simg/%s" % (request.url_root, identifier)
+    uri = f"{request.url_root}img/{identifier}"
     info = web.info(uri, resolve(identifier))
-    assert_auth_services(info, policy, identifier)
+    assert_auth_services(info, identifier)
 
     if authorise_probe_request(identifier):
         return make_acao_response(jsonify(info), 200)
 
     print('The user is not authed for this resource')
-    degraded_version = policy.get('degraded', None)
+    degraded_version = MEDIA_AUTH_CONFIG[identifier].get('degraded', None)
     if degraded_version:
-        redirect_to = "%simg/%s/info.json" % (request.url_root, degraded_version)
+        redirect_to = f"{request.url_root}img/{degraded_version}/info.json"
         print('a degraded version is available at', redirect_to)
         return make_acao_response(redirect(redirect_to, code=302))
 
     return make_acao_response(jsonify(info), 401)
-
 
 
 @app.route('/img/<identifier>/<region>/<size>/<rotation>/<quality>.<fmt>')
@@ -387,13 +379,13 @@ def image_api_request(identifier, **kwargs):
     """
     if authorise_resource_request(identifier):
         params = web.Parse.params(identifier, **kwargs)
-        policy = AUTH_POLICY[identifier]
-        max_width = policy.get('maxWidth', None)
+        config = MEDIA_AUTH_CONFIG[identifier]
+        max_width = config.get('maxWidth', None)
         if max_width is not None:
             # for the demo, please supply width and height in the policy if max... applies
             # I could go and find it out but it will be slow for tile requests.
-            full_w = policy['width']
-            full_h = policy['height']
+            full_w = config['width']
+            full_h = config['height']
             req_w, req_h = get_actual_dimensions(
                 params.get('region'),
                 params.get('size'),
@@ -438,6 +430,7 @@ def get_actual_dimensions(region, size, full_w, full_h):
     print("width, height", width, height)
     return width, height
 
+
 @app.route('/auth/cookie/<pattern>/<identifier>', methods=['GET', 'POST'])
 def cookie_service(pattern, identifier):
     """Cookie service (might be a login interaction pattern. Doesn't have to be)"""
@@ -469,9 +462,9 @@ def handle_login(pattern, identifier, origin, template):
 
     error = None
     if identifier != 'shared':
-        policy = AUTH_POLICY.get(identifier, None)
+        policy = MEDIA_AUTH_CONFIG.get(identifier, None)
         if not policy:
-            error = "No cookie service for %s" % identifier
+            error = f"No cookie service for {identifier}"
 
     if not error and request.method == 'POST':
         if request.form['username'] != 'username':
@@ -542,14 +535,14 @@ def get_service_id(pattern, identifier):
     """
         Simple format for session keys used to maintain session
     """
-    return "cookie/%s/%s" % (pattern, identifier)
+    return f"cookie/{pattern}/{identifier}"
 
 
 def split_key(key):
     """Get the pattern and the identifier out of the key"""
     parts = key.split('/')
     return {
-        "pattern" : parts[1],
+        "pattern": parts[1],
         "identifier": parts[2]
     }
 
@@ -558,7 +551,6 @@ def split_key(key):
 def post_login():
     """render a window-closing page"""
     return render_template('post_login.html')
-
 
 
 @app.route('/auth/token/<pattern>/<identifier>')
@@ -570,12 +562,12 @@ def token_service(pattern, identifier):
     session_id = get_session_id()
     token_object = None
     db_token = None
-    print("looking for token for session %s, service %s, pattern %s" % (session_id, service_id, pattern))
+    print(f"looking for token for session {session_id}, service {service_id}, pattern {pattern}")
     if session_id:
         db_token = query_db('select * from tokens where session_id=? and service_id=?',
                             [session_id, service_id], one=True)
     if db_token:
-        print("found token %s" % db_token['token'])
+        print(f"found token {db_token['token']}")
         session_origin = db_token['origin']
         if origin == session_origin or pattern == 'external':
             # don't enforce origin on external auth
@@ -584,7 +576,7 @@ def token_service(pattern, identifier):
                 "expiresIn": 600
             }
         else:
-            print("session origin was %s" % session_origin)
+            print(f"session origin was {session_origin}")
             token_object = {
                 "error": "invalidOrigin",
                 "description": "Not the origin supplied at login"
@@ -631,6 +623,7 @@ def view_session_tokens():
                            session_tokens=session_tokens,
                            user_session=get_session_id())
 
+
 @app.route('/killsessions')
 def kill_sessions():
     """Clear up all my current session tokens"""
@@ -668,17 +661,20 @@ def query_db(query, args=(), one=False):
     cur.close()
     return (rv[0] if rv else None) if one else rv
 
+
 @app.teardown_appcontext
 def close_db(error):
     """Closes the database again at the end of the request."""
     if hasattr(g, 'sqlite_db'):
         g.sqlite_db.close()
 
+
 def init_db():
     db = get_db()
     with app.open_resource('schema.sql', mode='r') as f:
         db.cursor().executescript(f.read())
     db.commit()
+
 
 @app.cli.command('initdb')
 def initdb_command():
@@ -687,10 +683,8 @@ def initdb_command():
     print('Initialized the database.')
 
 
-
 @app.route('/resources/<identifier>', methods=['GET', 'OPTIONS', 'HEAD'])
 def resource_request(identifier):
-
     # This might be used as a probe
     # TODO - what happens when this is the MPEG-DASH manifest?
     print("METHOD:", request.method)
@@ -703,7 +697,7 @@ def resource_request(identifier):
             return make_acao_response('', 200)
         return make_acao_response('', 401)
 
-    policy = AUTH_POLICY[identifier]
+    policy = MEDIA_AUTH_CONFIG[identifier]
     if authorise_resource_request(identifier):
         resp = send_file(resolve(identifier))
         required_session_origin = None
@@ -713,7 +707,7 @@ def resource_request(identifier):
             if session_id:
                 db_token = query_db('select * from tokens where session_id=?', [session_id], one=True)
             if db_token:
-                print("found token %s" % db_token['token'])
+                print(f"found token {db_token['token']}")
                 required_session_origin = db_token['origin']
                 # Here we are saying it's OK to echo back the origin we acquired during
                 # the auth flow, from the client.
@@ -729,16 +723,15 @@ def resource_request(identifier):
                 # BUT... the client might be making a credentialled request for
                 # something that is not authed?
                 required_session_origin = request.headers.get('Origin', None)
-        return make_acao_response(resp, origin=required_session_origin) # for dash.js
+        return make_acao_response(resp, origin=required_session_origin)  # for dash.js
     else:
         degraded_version = policy.get('degraded', None)
         if degraded_version:
-            content_location = "%sresources/%s" % (request.url_root, degraded_version)
+            content_location = f"{request.url_root}resources/{degraded_version}"
             print('a degraded version is available at', content_location)
             return redirect(content_location, code=302)
 
     return make_response("Not authorised", 401)
-
 
 
 @app.route('/resources/<manifest_identifier>/<fragment>', methods=['GET'])
@@ -756,15 +749,14 @@ def resource_request_fragment(manifest_identifier, fragment):
     # Otherwise, look for cookies and use them.
 
 
-
 @app.route('/probe/<identifier>', methods=['GET', 'OPTIONS', 'HEAD'])
 def probe(identifier):
     if request.method == 'OPTIONS':
         return preflight()
-    
-    policy = AUTH_POLICY[identifier]
+
+    policy = MEDIA_AUTH_CONFIG[identifier]
     probe_body = {
-        "contentLocation": "%sresources/%s" % (request.url_root, identifier),
+        "contentLocation": f"{request.url_root}resources/{identifier}",
         "label": "Probe service for " + identifier
     }
     http_status = 200
@@ -772,13 +764,12 @@ def probe(identifier):
         print('The user is not authed for the resource being probed via this service')
         degraded_version = policy.get('degraded', None)
         if degraded_version:
-            probe_body["contentLocation"] = "%sresources/%s" % (request.url_root, degraded_version)
+            probe_body["contentLocation"] = f"{request.url_root}resources/{degraded_version}"
         else:
             http_status = 401
-       
+
     return make_acao_response(jsonify(probe_body), http_status)
 
 
 if __name__ == '__main__':
-    app.run()
- 
+    app.run(ssl_context='adhoc')
